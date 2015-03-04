@@ -1,8 +1,7 @@
-package ru.ifmo.ctddev.itegulov.implementor;
+package ru.ifmo.ctddev.itegulov.implementor.example;
 
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
-import java.util.Set;
 
 /**
  * @author Daniyar Itegulov
@@ -37,8 +36,6 @@ public abstract class ExampleAbstractClass extends MiddleClass {
     public abstract Boolean getObjectBoolean(boolean bool);
 
     public abstract void someProcedure(int a, double b, boolean c, Object d);
-
-    public abstract Set<Integer> getSet();
 
     public abstract void nothing();
 }

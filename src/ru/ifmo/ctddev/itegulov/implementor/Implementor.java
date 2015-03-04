@@ -1,32 +1,57 @@
 package ru.ifmo.ctddev.itegulov.implementor;
 
-import java.io.IOException;
-import java.io.PrintWriter;
+import info.kgeorgiy.java.advanced.implementor.Impler;
+import info.kgeorgiy.java.advanced.implementor.ImplerException;
+import org.omg.CORBA_2_3.ORB;
+
+import java.io.*;
 import java.lang.reflect.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
  * @author Daniyar Itegulov
  * @since 27.02.15
  */
-public class Implementor {
+public class Implementor implements Impler {
     private static final String TAB = "    ";
     private final Class<?> clazz;
     private final String newClassName;
     private final List<Method> methodsToOverride;
     //{DeclaringClassName -> {NameOfTypeVariable -> RealType}}
     private final Map<String, Map<String, Type>> genericNamesTranslation;
-    public Implementor(Class clazz, String newClassName) {
+    private final Map<String, Class<?>> imports;
+
+    public Implementor() {
+        clazz = null;
+        newClassName = null;
+        methodsToOverride = null;
+        genericNamesTranslation = null;
+        imports = null;
+    }
+
+    public Implementor(Class clazz, String newClassName) throws ImplerException {
+        if (clazz.isPrimitive()) {
+            throw new ImplerException("Can't implement primitives");
+        }
+        
+        if (clazz.isArray()) {
+            throw new ImplerException("Can't implement arrays");
+        }
+        
+        if (Modifier.isFinal(clazz.getModifiers())) {
+            throw new ImplerException("Can't implement final class");
+        }
+        
+        //if (clazz.isAnnotation()) {
+        //    throw new ImplerException("Couldn't implement annotations");
+        //}
         //TODO: don't support some stupid type of classes (primitives?)
         this.clazz = clazz;
         this.newClassName = newClassName;
-        Set<WowSuchMethod> set = new HashSet<>();
-        getMethodsToOverride(set, clazz);
-        this.methodsToOverride = new ArrayList<>();
-        for (WowSuchMethod wowSuchMethod : set) {
-            methodsToOverride.add(wowSuchMethod.getMethod());
-        }
+        methodsToOverride = getMethodsToOverride(clazz);
         this.genericNamesTranslation = createGenericNamesTranslation();
+        this.imports = getImports();
     }
 
     private static void initGenericNamesTranslation(Map<String, Type> passedParams, Map<String, Map<String, Type>>
@@ -57,18 +82,102 @@ public class Implementor {
         }
     }
 
-    private static void getMethodsToOverride(Set<WowSuchMethod> set, Class<?> classToSearch) {
-        for (Method method : classToSearch.getDeclaredMethods()) {
-            if (Modifier.isAbstract(method.getModifiers())) {
-                set.add(new WowSuchMethod(method));
+    private static boolean isGeneric(Type type) {
+        if (type instanceof ParameterizedType) {
+            return true;
+        } else if (type instanceof GenericArrayType) {
+            return true;
+        } else if (type instanceof Class) {
+            return false;
+        } else if (type instanceof WildcardType) {
+            return true;
+        } else if (type instanceof TypeVariable) {
+            return true;
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+
+    private static void addMethod(Map<WowSuchMethod, WowSuchMethod> map, Method method) throws ImplerException {
+        WowSuchMethod signature = new WowSuchMethod(method);
+        WowSuchMethod oldSignature = map.get(signature);
+        if (oldSignature == null) {
+            map.put(signature, signature);
+        } else if (oldSignature.equals(signature)) {
+            Method oldMethod = oldSignature.method;
+            if (!oldMethod.getReturnType().equals(method.getReturnType())
+                    && oldMethod.getReturnType().isAssignableFrom(method.getReturnType())) {
+                map.put(signature, signature);
+            } else {
+                Type[] parameterTypes = method.getGenericParameterTypes();
+                for (int i = 0; i < parameterTypes.length; i++) {
+                    Class<?> thisP = method.getParameterTypes()[i];
+                    Class<?> oldP = oldMethod.getParameterTypes()[i];
+                    if (!thisP.equals(oldP)) {
+                        Type newGP = parameterTypes[i];
+                        if (isGeneric(newGP)) {
+                            map.put(signature, signature);
+                            break;
+                        }
+                    }
+                }
             }
         }
-        if (classToSearch.getSuperclass() != null && !classToSearch.getSuperclass().equals(Object.class)) {
-            getMethodsToOverride(set, classToSearch.getSuperclass());
+    }
+
+    private static void addAllOverrideMethodsFromParents(HashMap<WowSuchMethod, WowSuchMethod> methodsSignatures, 
+                                                         Class<?> clazz, String packageOfImpl) throws ImplerException {
+        for (Method method : clazz.getDeclaredMethods()) {
+            //Only for package local not static and not final methods
+            if (!Modifier.isProtected(method.getModifiers()) && !Modifier.isPublic(method.getModifiers()) && !Modifier.isPrivate(method.getModifiers())
+                    && !Modifier.isFinal(method.getModifiers()) && !Modifier.isStatic(method.getModifiers())
+                    && Modifier.isAbstract(method.getModifiers()) && clazz.getPackage().getName().equals(packageOfImpl)) {
+                addMethod(methodsSignatures, method);
+            }
         }
-        for (Class<?> anInterface : classToSearch.getInterfaces()) {
-            getMethodsToOverride(set, anInterface);
+
+        for (Method method : clazz.getDeclaredMethods()) {
+            //Only for package local not static and not final methods
+            if (Modifier.isProtected(method.getModifiers())
+                    && !Modifier.isFinal(method.getModifiers())
+                    && Modifier.isAbstract(method.getModifiers())) {
+                addMethod(methodsSignatures, method);
+            }
         }
+
+        for (Class<?> parent : clazz.getInterfaces()) {
+            addAllOverrideMethodsFromParents(methodsSignatures, parent, packageOfImpl);
+        }
+        Class<?> superclass = clazz.getSuperclass();
+        if (superclass != null) {
+            addAllOverrideMethodsFromParents(methodsSignatures, superclass, packageOfImpl);
+        }
+    }
+
+    private static List<Method> getMethodsToOverride(Class<?> classToSearch) throws ImplerException {
+        HashMap<WowSuchMethod, WowSuchMethod> map = new HashMap<>();
+        for (Method method : classToSearch.getDeclaredMethods()) {
+            //Only for protected not static and not final methods (declared in this class)
+            if (Modifier.isProtected(method.getModifiers())
+                    && !Modifier.isFinal(method.getModifiers()) && !Modifier.isStatic(method.getModifiers())
+                    && Modifier.isAbstract(method.getModifiers())) {
+                addMethod(map, method);
+            }
+        }
+        for (Method method : classToSearch.getMethods()) {
+            //Only for public not static and not final methods (visible in this class)
+            if (Modifier.isPublic(method.getModifiers())
+                    && !Modifier.isFinal(method.getModifiers()) && !Modifier.isStatic(method.getModifiers())
+                    && Modifier.isAbstract(method.getModifiers())) {
+                addMethod(map, method);
+            }
+        }
+        addAllOverrideMethodsFromParents(map, classToSearch, classToSearch.getPackage().getName());
+        List<Method> methods = new ArrayList<>();
+        for (WowSuchMethod methodSignature : map.values()) {
+            methods.add(methodSignature.method);
+        }
+        return methods;
     }
 
     private static String getDefaultValue(Type type) {
@@ -84,25 +193,9 @@ public class Implementor {
         }
     }
 
-    public static void main(String[] args) {
-        if (args == null || args.length != 1 || args[0] == null) {
-            System.err.println("Usage: java Implementor [className]");
-            return;
-        }
-
-        try {
-            Class clazz = Class.forName(args[0]);
-            Implementor implementor = new Implementor(clazz, clazz.getSimpleName() + "Impl");
-            PrintWriter printWriter = new PrintWriter(System.out);
-            try {
-                implementor.implement(printWriter);
-            } catch (IOException e) {
-                System.err.println("Error writing new java class");
-            }
-            printWriter.close();
-        } catch (ClassNotFoundException e) {
-            System.err.println("Class " + args[0] + " not found");
-        }
+    public static void main(String[] args) throws ImplerException {
+        Implementor implementor = new Implementor();
+        implementor.implement(ORB.class, new File("src"));
     }
 
     private Map<String, Map<String, Type>> createGenericNamesTranslation() {
@@ -140,7 +233,7 @@ public class Implementor {
                 addImport(toImport, clazz.getComponentType());
             } else if (!clazz.isPrimitive() && !clazz.getPackage().equals(Package.getPackage("java.lang")) && !clazz
                     .getPackage().equals(this.clazz.getPackage())) {
-                toImport.put(clazz.getName(), clazz);
+                toImport.put(clazz.getSimpleName(), clazz);
             }
         } else if (type instanceof TypeVariable) {
             //TODO: do nothing?
@@ -159,7 +252,7 @@ public class Implementor {
         }
 
         for (Constructor<?> constructor : clazz.getConstructors()) {
-            for (Type type : constructor.getParameterTypes()) {
+            for (Type type : constructor.getGenericParameterTypes()) {
                 addImport(toImport, type);
             }
 
@@ -183,12 +276,13 @@ public class Implementor {
     }
 
     private void writePackage(PrintWriter writer) throws IOException {
-        writer.println("package " + clazz.getPackage().getName() + ";");
-        writer.println();
+        if (clazz.getPackage() != null) {
+            writer.println("package " + clazz.getPackage().getName() + ";");
+            writer.println();
+        }
     }
 
     private void writeImports(PrintWriter writer) throws IOException {
-        Map<String, Class<?>> imports = getImports();
         for (Map.Entry<String, Class<?>> entry : imports.entrySet()) {
             writer.println("import " + entry.getValue().getName() + ";");
         }
@@ -238,20 +332,20 @@ public class Implementor {
         for (TypeVariable<?> var : genericArguments) {
             setOfGenericParamsNames.add(var.getName());
         }
-        String result = "";
+        StringBuilder result = new StringBuilder();
         if (genericArguments.length != 0) {
-            result = "<";
+            result.append("<");
             for (int i = 0; i < genericArguments.length; i++) {
                 TypeVariable<?> arg = genericArguments[i];
-                result += getName(arg, genericNamesTranslation, setOfGenericParamsNames);
+                result.append(getName(arg, genericNamesTranslation, setOfGenericParamsNames));
                 if (i != genericArguments.length - 1) {
-                    result += ", ";
+                    result.append(", ");
                 } else {
-                    result += ">";
+                    result.append(">");
                 }
             }
         }
-        return result;
+        return result.toString();
     }
 
     private String getName(TypeVariable<?> type, Map<String, Map<String, Type>> genericNamesTranslation, Set<String>
@@ -285,24 +379,30 @@ public class Implementor {
                                              Set<String> exclusionNames) {
         if (type instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) type;
-            String result = ((Class<?>) parameterizedType.getRawType()).getSimpleName() + "<";
+            StringBuilder result = new StringBuilder(((Class<?>) parameterizedType.getRawType()).getSimpleName());
+            result.append("<");
             Type[] args = parameterizedType.getActualTypeArguments();
             for (int i = 0; i < args.length; i++) {
-                result += toStringGenericTypedClass(args[i], genericNamesTranslation, exclusionNames);
+                result.append(toStringGenericTypedClass(args[i], genericNamesTranslation, exclusionNames));
                 if (i != args.length - 1) {
-                    result += ", ";
+                    result.append(", ");
                 } else {
-                    result += ">";
+                    result.append(">");
                 }
             }
-            return result;
+            return result.toString();
         } else if (type instanceof TypeVariable) {
             return getName(((TypeVariable) type), genericNamesTranslation, exclusionNames);
         } else if (type instanceof GenericArrayType) {
             return toStringGenericTypedClass(((GenericArrayType) type).getGenericComponentType(),
                     genericNamesTranslation, exclusionNames) + "[]";
         } else if (type instanceof Class) {
-            return ((Class) type).getSimpleName();
+            Class<?> clazz = (Class<?>) type;
+            if (imports.containsKey(clazz.getSimpleName()) && !imports.get(clazz.getSimpleName()).equals(clazz)) {
+                return clazz.getName();
+            } else {
+                return clazz.getSimpleName();
+            }
         } else if (type instanceof WildcardType) {
             return formatWildcard((WildcardType) type, genericNamesTranslation);
         } else {
@@ -316,27 +416,27 @@ public class Implementor {
             if (type.getUpperBounds().length != 1 || !type.getUpperBounds()[0].equals(Object.class)) {
                 throw new IllegalStateException();
             }
-            String result = "? super ";
+            StringBuilder result = new StringBuilder("? super ");
             Type[] bounds = type.getLowerBounds();
             for (int i = 0; i < bounds.length; i++) {
                 Type bound = bounds[i];
-                result += toStringGenericTypedClass(bound, genericNamesTranslation, null);
+                result.append(toStringGenericTypedClass(bound, genericNamesTranslation, null));
                 if (i != bounds.length - 1) {
-                    result += ", ";
+                    result.append(", ");
                 }
             }
-            return result;
+            return result.toString();
         } else if (type.getUpperBounds().length != 0 && !type.getUpperBounds()[0].equals(Object.class)) {
-            String result = "? extends ";
+            StringBuilder result = new StringBuilder("? extends ");
             Type[] bounds = type.getUpperBounds();
             for (int i = 0; i < bounds.length; i++) {
                 Type bound = bounds[i];
-                result += toStringGenericTypedClass(bound, genericNamesTranslation, null);
+                result.append(toStringGenericTypedClass(bound, genericNamesTranslation, null));
                 if (i != bounds.length - 1) {
-                    result += ", ";
+                    result.append(", ");
                 }
             }
-            return result;
+            return result.toString();
         } else {
             return "?";
         }
@@ -392,6 +492,9 @@ public class Implementor {
 
     private void writeMethodImplementations(PrintWriter writer) throws IOException {
         for (Method method : methodsToOverride) {
+            if (method.getAnnotation(Deprecated.class) != null) {
+                writer.println(TAB + "@Deprecated");
+            }
             writer.println(TAB + "@Override");
             if (Modifier.isProtected(method.getModifiers())) {
                 writer.print(TAB + "protected ");
@@ -431,7 +534,7 @@ public class Implementor {
         }
     }
 
-    private void writeConstructors(PrintWriter writer) {
+    private void writeConstructors(PrintWriter writer) throws ImplerException {
         for (Constructor<?> constructor : clazz.getConstructors()) {
             writer.print(TAB + "public " + newClassName);
             writer.print("(");
@@ -465,6 +568,17 @@ public class Implementor {
             writer.println(");");
             writer.println(TAB + "}");
         }
+        
+        boolean foundNonPrivateConstructor = false;
+        for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
+            if (!Modifier.isPrivate(constructor.getModifiers())) {
+                foundNonPrivateConstructor = true;
+            }
+        }
+        
+        if (!clazz.isInterface() && !foundNonPrivateConstructor) {
+            throw new ImplerException("Couldn't find non-private constructor");
+        }
     }
 
     private Set<String> getSetOfNames(TypeVariable<?>[] typeParameters) {
@@ -475,13 +589,36 @@ public class Implementor {
         return names;
     }
 
-    public void implement(PrintWriter writer) throws IOException {
+    public void implement(PrintWriter writer) throws IOException, ImplerException {
         writePackage(writer);
         writeImports(writer);
         writeClassDeclaration(writer);
         writeConstructors(writer);
         writeMethodImplementations(writer);
         writer.write("}");
+    }
+
+    @Override
+    public void implement(final Class<?> token, final File root) throws ImplerException {
+        if (token == null || root == null) {
+            throw new ImplerException("Null arguments");
+        }
+        File resultFile = new File(new File(root, 
+                token.getPackage() != null ? token.getPackage().getName().replace(".", File.separator) : ""),
+                token.getSimpleName() + "Impl.java");
+        if (!resultFile.getParentFile().exists() && !resultFile.getParentFile().mkdirs()) {
+            throw new ImplerException("Couldn't create dirs");
+        }
+        Implementor implementor = new Implementor(token, token.getSimpleName() + "Impl");
+        try(PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(resultFile), StandardCharsets.UTF_8))) {
+            try {
+                implementor.implement(printWriter);
+            } catch (IOException e) {
+                throw new ImplerException("Couldn't write to output file");
+            }
+        } catch (FileNotFoundException e) {
+            throw new ImplerException("Root file not found");
+        }
     }
 
     private static class WowSuchMethod {
@@ -584,10 +721,6 @@ public class Implementor {
         @Override
         public int hashCode() {
             return method.getName().hashCode();
-        }
-
-        public Method getMethod() {
-            return method;
         }
     }
 }

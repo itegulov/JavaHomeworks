@@ -1,4 +1,4 @@
-package ru.ifmo.ctddev.itegulov.implementor;
+package ru.ifmo.ctddev.itegulov.implementor.example;
 
 import ru.ifmo.ctddev.itegulov.arrayset.ArraySet;
 
@@ -32,7 +32,7 @@ public interface ExampleInterface {
     
     Map<?, String> getStrangeMap();
     
-    Map<?, ?>[][][][][][][][][][][][][][][][][][][][][][][][][][] emmm();
+    Map<? , ?>[][][][][][][][][][][][][][][][][][][][][][][][][][] emmm();
     
     Map<AbstractSet, ? extends AbstractMap>[] getBadMaps();
     
