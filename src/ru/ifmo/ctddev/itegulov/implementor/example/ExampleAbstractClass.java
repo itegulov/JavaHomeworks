@@ -1,6 +1,5 @@
 package ru.ifmo.ctddev.itegulov.implementor.example;
 
-import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 
 /**
@@ -8,11 +7,7 @@ import java.nio.file.NoSuchFileException;
  * @since 28.02.15
  */
 public abstract class ExampleAbstractClass extends MiddleClass {
-    public ExampleAbstractClass(int a, int b) throws IOException {
-        throw new IOException("HEH");
-    }
-
-    public ExampleAbstractClass() throws NoSuchFileException {
+    protected ExampleAbstractClass() throws NoSuchFileException {
         super();
     }
 
