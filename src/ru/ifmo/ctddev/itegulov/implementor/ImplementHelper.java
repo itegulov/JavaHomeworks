@@ -34,10 +34,6 @@ public class ImplementHelper {
             throw new ImplerException("Can't implement final class");
         }
         
-        if (clazz.isMemberClass()) {
-            throw new ImplerException("Can't implement member class");
-        }
-        
         this.clazz = clazz;
         this.newClassName = newClassName;
         Map<MethodSignature, MethodSignature> map = new HashMap<>();
@@ -222,8 +218,10 @@ public class ImplementHelper {
             Class<?> clazz = (Class<?>) type;
             if (clazz.isArray()) {
                 addImport(toImport, clazz.getComponentType());
+            } else if (clazz.isMemberClass()) {
+                toImport.put(clazz.getSimpleName(), clazz);
             } else if (!clazz.isPrimitive() && !clazz.getPackage().equals(Package.getPackage("java.lang")) 
-                    && !clazz.getPackage().equals(this.clazz.getPackage()) && !clazz.isLocalClass() && !clazz.isMemberClass()) {
+                    && !clazz.getPackage().equals(this.clazz.getPackage()) && !clazz.isLocalClass()) {
                 toImport.put(clazz.getSimpleName(), clazz);
             }
         } else if (type instanceof TypeVariable) {
@@ -276,7 +274,7 @@ public class ImplementHelper {
 
     private void writeImports(PrintWriter writer) throws IOException {
         for (Map.Entry<String, Class<?>> entry : imports.entrySet()) {
-            writer.println("import " + entry.getValue().getName() + ";");
+            writer.println("import " + entry.getValue().getCanonicalName() + ";");
         }
         writer.println();
     }
@@ -399,18 +397,6 @@ public class ImplementHelper {
             if (imports.containsKey(clazz.getSimpleName()) && !imports.get(clazz.getSimpleName()).equals(clazz)) {
                 return clazz.getName();
             } else {
-                if (clazz.isMemberClass()) {
-                    StringBuilder sb = new StringBuilder();
-                    Class<?> enclosing = clazz;
-                    while (!enclosing.equals(this.clazz)) {
-                        sb.append(enclosing.getSimpleName());
-                        enclosing = enclosing.getEnclosingClass();
-                        if (!enclosing.equals(this.clazz)) {
-                            sb.append(".");
-                        }
-                    }
-                    return sb.reverse().toString();
-                }
                 return clazz.getSimpleName();
             }
         } else if (type instanceof WildcardType) {
