@@ -58,9 +58,4 @@ public class MyImplementorTest extends ClassImplementorTest {
     public void test25_overridenAbstractMethod() throws Exception {
         test(false, SimpleClassExtended.class);
     }
-
-    @Test
-    public void test26_innerClasses() throws Exception {
-        test(true, SimpleTemplateInterface.A.class, SimpleTemplateInterface.A.B.class, SimpleTemplateInterface.A.B.C.class);
-    }
 }

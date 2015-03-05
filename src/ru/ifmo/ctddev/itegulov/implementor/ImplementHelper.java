@@ -19,7 +19,6 @@ public class ImplementHelper {
     private final List<Constructor> constructorsToSuper;
     //{DeclaringClassName -> {NameOfTypeVariable -> RealType}}
     private final Map<String, Map<String, Type>> genericNamesTranslation;
-    private final Map<String, Class<?>> imports;
 
     public ImplementHelper(Class clazz, String newClassName) throws ImplerException {
         if (clazz.isPrimitive()) {
@@ -44,7 +43,6 @@ public class ImplementHelper {
         }
         this.constructorsToSuper = getConstructorsToSuper();
         this.genericNamesTranslation = createGenericNamesTranslation();
-        this.imports = getImports();
     }
 
     private List<Constructor> getConstructorsToSuper() {
@@ -195,90 +193,13 @@ public class ImplementHelper {
         return genericNamesTranslation;
     }
 
-    private void addImport(Map<String, Class<?>> toImport, Type type) {
-        if (type instanceof ParameterizedType) {
-            ParameterizedType parameterizedType = (ParameterizedType) type;
-            addImport(toImport, parameterizedType.getRawType());
-            for (Type t : parameterizedType.getActualTypeArguments()) {
-                addImport(toImport, t);
-            }
-        } else if (type instanceof GenericArrayType) {
-            GenericArrayType genericArrayType = (GenericArrayType) type;
-            addImport(toImport, genericArrayType.getGenericComponentType());
-        } else if (type instanceof WildcardType) {
-            WildcardType wildcardType = (WildcardType) type;
-            for (Type t : wildcardType.getLowerBounds()) {
-                addImport(toImport, t);
-            }
-
-            for (Type t : wildcardType.getUpperBounds()) {
-                addImport(toImport, t);
-            }
-        } else if (type instanceof Class) {
-            Class<?> clazz = (Class<?>) type;
-            if (clazz.isArray()) {
-                addImport(toImport, clazz.getComponentType());
-            } else if (clazz.isMemberClass()) {
-                toImport.put(clazz.getSimpleName(), clazz);
-            } else if (!clazz.isPrimitive() && !clazz.getPackage().equals(Package.getPackage("java.lang")) 
-                    && !clazz.getPackage().equals(this.clazz.getPackage()) && !clazz.isLocalClass()) {
-                toImport.put(clazz.getSimpleName(), clazz);
-            }
-        } else if (type instanceof TypeVariable) {
-            TypeVariable typeVariable = (TypeVariable) type;
-            for (Type bound : typeVariable.getBounds()) {
-                addImport(toImport, bound);
-            }
-        } else {
-            throw new IllegalStateException();
-        }
-    }
-
-    private Map<String, Class<?>> getImports() {
-        Map<String, Class<?>> toImport = new HashMap<>();
-        TypeVariable<? extends Class<?>>[] typeVariables = clazz.getTypeParameters();
-        for (TypeVariable<?> typeVariable : typeVariables) {
-            for (Type type : typeVariable.getBounds()) {
-                addImport(toImport, type);
-            }
-        }
-
-        for (Constructor<?> constructor : constructorsToSuper) {
-            for (Type type : constructor.getGenericParameterTypes()) {
-                addImport(toImport, type);
-            }
-
-            for (Type type : constructor.getGenericExceptionTypes()) {
-                addImport(toImport, type);
-            }
-        }
-
-        for (Method method : methodsToOverride) {
-            for (TypeVariable typeVariable : method.getTypeParameters()) {
-                addImport(toImport, typeVariable);
-            }
-            for (Type type : method.getGenericParameterTypes()) {
-                addImport(toImport, type);
-            }
-            addImport(toImport, method.getGenericReturnType());
-        }
-        return toImport;
-    }
-
     private void writePackage(PrintWriter writer) throws IOException {
         if (clazz.getPackage() != null) {
             writer.println("package " + clazz.getPackage().getName() + ";");
             writer.println();
         }
     }
-
-    private void writeImports(PrintWriter writer) throws IOException {
-        for (Map.Entry<String, Class<?>> entry : imports.entrySet()) {
-            writer.println("import " + entry.getValue().getCanonicalName() + ";");
-        }
-        writer.println();
-    }
-
+    
     private void writeClassDeclaration(PrintWriter writer) throws IOException {
         String modifiers;
         if (clazz.isInterface()) {
@@ -292,7 +213,7 @@ public class ImplementHelper {
         writer.print(modifiers);
         writer.print("class " + newClassName + generateGenericParamsPrefix(clazz.getTypeParameters()));
         writer.print(clazz.isInterface() ? " implements " : " extends ");
-        writer.println(clazz.getSimpleName() + generateGenericParamsSuffix(clazz.getTypeParameters()) + " {");
+        writer.println(clazz.getCanonicalName() + generateGenericParamsSuffix(clazz.getTypeParameters()) + " {");
     }
 
     private String generateGenericParamsPrefix(TypeVariable<?>[] genericArguments) {
@@ -376,7 +297,7 @@ public class ImplementHelper {
     private String toStringGenericTypedClass(Type type, Set<String> exclusionNames) {
         if (type instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) type;
-            StringBuilder result = new StringBuilder(((Class<?>) parameterizedType.getRawType()).getSimpleName());
+            StringBuilder result = new StringBuilder(((Class<?>) parameterizedType.getRawType()).getCanonicalName());
             result.append("<");
             Type[] args = parameterizedType.getActualTypeArguments();
             for (int i = 0; i < args.length; i++) {
@@ -394,11 +315,7 @@ public class ImplementHelper {
             return toStringGenericTypedClass(((GenericArrayType) type).getGenericComponentType(), exclusionNames) + "[]";
         } else if (type instanceof Class) {
             Class<?> clazz = (Class<?>) type;
-            if (imports.containsKey(clazz.getSimpleName()) && !imports.get(clazz.getSimpleName()).equals(clazz)) {
-                return clazz.getName();
-            } else {
-                return clazz.getSimpleName();
-            }
+            return clazz.getCanonicalName();
         } else if (type instanceof WildcardType) {
             return formatWildcard((WildcardType) type, exclusionNames);
         } else {
@@ -536,7 +453,6 @@ public class ImplementHelper {
 
     public void implement(PrintWriter writer) throws IOException, ImplerException {
         writePackage(writer);
-        writeImports(writer);
         writeClassDeclaration(writer);
         writeConstructors(writer);
         writeMethodImplementations(writer);

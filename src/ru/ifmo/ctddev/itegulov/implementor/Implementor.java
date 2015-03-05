@@ -41,6 +41,6 @@ public class Implementor implements Impler {
     }
 
     public static void main(String[] args) throws ImplerException {
-        new Implementor().implement(SimpleTemplateInterface.class, new File("src"));
+        new Implementor().implement(SimpleTemplateInterface.A.class, new File("src"));
     }
 }
