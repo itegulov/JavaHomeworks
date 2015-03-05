@@ -7,7 +7,6 @@ import java.lang.annotation.Target;
 
 /**
  * @author Daniyar Itegulov
- * @since 05.03.15
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)

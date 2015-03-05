@@ -4,7 +4,6 @@ import java.nio.file.NoSuchFileException;
 
 /**
  * @author Daniyar Itegulov
- * @since 28.02.15
  */
 public abstract class ExampleAbstractClass extends MiddleClass {
     protected ExampleAbstractClass() throws NoSuchFileException {

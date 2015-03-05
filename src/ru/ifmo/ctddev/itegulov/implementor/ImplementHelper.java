@@ -9,7 +9,6 @@ import java.util.*;
 
 /**
  * @author Daniyar Itegulov
- * @since 05.03.15
  */
 public class ImplementHelper {
     private static final String TAB = "    ";
@@ -33,6 +32,10 @@ public class ImplementHelper {
 
         if (Modifier.isFinal(clazz.getModifiers())) {
             throw new ImplerException("Can't implement final class");
+        }
+        
+        if (clazz.isMemberClass()) {
+            throw new ImplerException("Can't implement member class");
         }
         
         this.clazz = clazz;
@@ -224,7 +227,10 @@ public class ImplementHelper {
                 toImport.put(clazz.getSimpleName(), clazz);
             }
         } else if (type instanceof TypeVariable) {
-            //TODO: do nothing?
+            TypeVariable typeVariable = (TypeVariable) type;
+            for (Type bound : typeVariable.getBounds()) {
+                addImport(toImport, bound);
+            }
         } else {
             throw new IllegalStateException();
         }
@@ -251,9 +257,7 @@ public class ImplementHelper {
 
         for (Method method : methodsToOverride) {
             for (TypeVariable typeVariable : method.getTypeParameters()) {
-                for (Type bound : typeVariable.getBounds()) {
-                    addImport(toImport, bound);
-                }
+                addImport(toImport, typeVariable);
             }
             for (Type type : method.getGenericParameterTypes()) {
                 addImport(toImport, type);
@@ -395,6 +399,18 @@ public class ImplementHelper {
             if (imports.containsKey(clazz.getSimpleName()) && !imports.get(clazz.getSimpleName()).equals(clazz)) {
                 return clazz.getName();
             } else {
+                if (clazz.isMemberClass()) {
+                    StringBuilder sb = new StringBuilder();
+                    Class<?> enclosing = clazz;
+                    while (!enclosing.equals(this.clazz)) {
+                        sb.append(enclosing.getSimpleName());
+                        enclosing = enclosing.getEnclosingClass();
+                        if (!enclosing.equals(this.clazz)) {
+                            sb.append(".");
+                        }
+                    }
+                    return sb.reverse().toString();
+                }
                 return clazz.getSimpleName();
             }
         } else if (type instanceof WildcardType) {
@@ -405,7 +421,6 @@ public class ImplementHelper {
     }
 
     private String formatWildcard(WildcardType type, Set<String> exclusionNames) {
-        //TODO: more general?
         if (type.getLowerBounds().length != 0) {
             if (type.getUpperBounds().length != 1 || !type.getUpperBounds()[0].equals(Object.class)) {
                 throw new IllegalStateException();
@@ -452,8 +467,7 @@ public class ImplementHelper {
                 //Package-local
                 writer.print(TAB);
             }
-
-            //TODO: check?
+            
             String genericArgumentsPrefix = generateGenericParamsPrefix(method.getTypeParameters());
             if (!genericArgumentsPrefix.isEmpty()) {
                 writer.print(genericArgumentsPrefix + " ");

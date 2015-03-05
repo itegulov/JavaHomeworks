@@ -8,7 +8,6 @@ import java.util.stream.Stream;
 
 /**
  * @author Daniyar Itegulov
- * @since 28.02.15
  */
 public interface ExampleInterface {
     int getInt();

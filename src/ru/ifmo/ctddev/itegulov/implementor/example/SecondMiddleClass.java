@@ -5,7 +5,6 @@ import java.util.Map;
 
 /**
  * @author Daniyar Itegulov
- * @since 03.03.15
  */
 public  abstract class SecondMiddleClass extends MiddleClass {
     @Override

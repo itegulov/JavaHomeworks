@@ -5,7 +5,6 @@ import java.util.Set;
 
 /**
  * @author Daniyar Itegulov
- * @since 05.03.15
  */
 public abstract class SimpleClass {
     public abstract Map map();

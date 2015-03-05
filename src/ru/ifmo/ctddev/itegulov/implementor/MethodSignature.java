@@ -4,7 +4,6 @@ import java.lang.reflect.*;
 
 /**
 * @author Daniyar Itegulov
-* @since 05.03.15
 */
 class MethodSignature {
     private final Method method;

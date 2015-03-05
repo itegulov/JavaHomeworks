@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.BaseStream;
 
+/**
+ * @author Daniyar Itegulov
+ */
 public interface AnotherInterface {
     @Deprecated
     public boolean getBoolean(Boolean b, boolean a) throws IndexOutOfBoundsException;

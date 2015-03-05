@@ -5,7 +5,6 @@ import java.util.HashSet;
 
 /**
  * @author Daniyar Itegulov
- * @since 05.03.15
  */
 public abstract class SimpleClassExtended extends SimpleClass {
     @Override

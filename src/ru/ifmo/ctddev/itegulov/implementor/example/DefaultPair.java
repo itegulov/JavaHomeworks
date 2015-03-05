@@ -1,5 +1,8 @@
 package ru.ifmo.ctddev.itegulov.implementor.example;
 
+/**
+ * @author Daniyar Itegulov
+ */
 public abstract class DefaultPair<A, B> implements Pair<A, B> {
     public DefaultPair(A a, B b) {
         this.a = a;

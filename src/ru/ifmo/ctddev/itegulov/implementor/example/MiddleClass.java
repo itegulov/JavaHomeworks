@@ -4,7 +4,6 @@ import java.util.Map;
 
 /**
  * @author Daniyar Itegulov
- * @since 28.02.15
  */
 public abstract class MiddleClass implements ExampleInterface {
     
