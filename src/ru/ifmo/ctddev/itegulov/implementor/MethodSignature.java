@@ -12,9 +12,9 @@ class MethodSignature {
         this.method = method;
     }
 
+    @SuppressWarnings("RedundantIfStatement")
     private static boolean differsInTypeVariable(Type thisType, Type thatType) {
         if (thisType instanceof ParameterizedType) {
-            //hehlatex
             return false;
         } else if (thisType instanceof GenericArrayType) {
             if (thatType instanceof GenericArrayType) {
@@ -23,7 +23,6 @@ class MethodSignature {
                 return differsInTypeVariable(thisGeneric.getGenericComponentType(), thatGeneric
                         .getGenericComponentType());
             } else {
-                //hehlatex
                 return false;
             }
         } else if (thisType instanceof Class) {
@@ -31,29 +30,21 @@ class MethodSignature {
             if (thisClass.isArray()) {
                 if (thatType instanceof Class) {
                     Class thatClass = (Class) thatType;
-                    if (thatClass.isArray()) {
-                        return differsInTypeVariable(thisClass.getComponentType(), thatClass.getComponentType());
-                    } else {
-                        //hehlatex
-                        return false;
-                    }
+                    return thatClass.isArray() 
+                            && differsInTypeVariable(thisClass.getComponentType(), thatClass .getComponentType());
                 } else if (thatType instanceof GenericArrayType) {
                     GenericArrayType thatGeneric = (GenericArrayType) thatType;
                     return differsInTypeVariable(thisClass.getComponentType(), thatGeneric
                             .getGenericComponentType());
                 } else {
-                    //hehlatex
                     return false;
                 }
             } else if (thisClass.equals(Object.class)) {
-                //hehlatex
                 return true;
             } else {
-                //hehlatex
                 return false;
             }
         } else if (thisType instanceof WildcardType) {
-            //hehlatex
             return false;
         } else if (thisType instanceof TypeVariable) {
             return thatType.equals(Object.class);
