@@ -18,6 +18,10 @@ public class Implementor implements Impler {
     public Implementor() {
     }
 
+    public static void main(String[] args) throws ImplerException {
+        new Implementor().implement(SimpleTemplateInterface.A.class, new File("src"));
+    }
+
     @Override
     public void implement(final Class<?> token, final File root) throws ImplerException {
         if (token == null || root == null) {
@@ -38,9 +42,5 @@ public class Implementor implements Impler {
         } catch (IOException e) {
             throw new ImplerException("Couldn't open output file");
         }
-    }
-
-    public static void main(String[] args) throws ImplerException {
-        new Implementor().implement(SimpleTemplateInterface.A.class, new File("src"));
     }
 }

@@ -32,7 +32,7 @@ public class ImplementHelper {
         if (Modifier.isFinal(clazz.getModifiers())) {
             throw new ImplerException("Can't implement final class");
         }
-        
+
         this.clazz = clazz;
         this.newClassName = newClassName;
         Map<MethodSignature, MethodSignature> map = new HashMap<>();
@@ -45,26 +45,15 @@ public class ImplementHelper {
         this.genericNamesTranslation = createGenericNamesTranslation();
     }
 
-    private List<Constructor> getConstructorsToSuper() {
-        List<Constructor> constructors = new ArrayList<>();
-        for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
-            if (Modifier.isPrivate(constructor.getModifiers())) {
-                continue;
-            }
-            constructors.add(constructor);
-        }
-        return constructors;
-    }
-
-    private static void initGenericNamesTranslation(Map<String, Type> passedParams,
-                                                    Map<String, Map<String, Type>> genericNamesTranslation,
+    private static void initGenericNamesTranslation(Map<String, Type> passedParams, 
+                                                    Map<String, Map<String, Type>> genericNamesTranslation, 
                                                     Class<?> clazz) {
         Map<String, Type> realNameByCurName = new HashMap<>();
         Map<String, Type> oldPassedParams = passedParams;
         for (TypeVariable<?> variable : clazz.getTypeParameters()) {
             Type realValue = variable;
-            while (passedParams.containsKey(realValue.getTypeName()) 
-                   && !passedParams.get(realValue.getTypeName()).equals(realValue)) {
+            while (passedParams.containsKey(realValue.getTypeName()) && !passedParams.get(realValue.getTypeName())
+                    .equals(realValue)) {
                 realValue = passedParams.get(realValue.getTypeName());
                 for (Map.Entry<String, Map<String, Type>> map : genericNamesTranslation.entrySet()) {
                     Map<String, Type> translation = map.getValue();
@@ -120,8 +109,8 @@ public class ImplementHelper {
             map.put(signature, signature);
         } else if (oldSignature.equals(signature)) {
             Method oldMethod = oldSignature.getMethod();
-            if (!oldMethod.getReturnType().equals(method.getReturnType())
-                    && oldMethod.getReturnType().isAssignableFrom(method.getReturnType())) {
+            if (!oldMethod.getReturnType().equals(method.getReturnType()) && oldMethod.getReturnType()
+                    .isAssignableFrom(method.getReturnType())) {
                 map.put(signature, signature);
             } else {
                 Type[] parameterTypes = method.getGenericParameterTypes();
@@ -140,24 +129,23 @@ public class ImplementHelper {
         }
     }
 
-    private static void getMethodsToOverride(Map<MethodSignature, MethodSignature> toImplement,
-                                             Map<MethodSignature, MethodSignature> implemented,
+    private static void getMethodsToOverride(Map<MethodSignature, MethodSignature> toImplement, 
+                                             Map<MethodSignature, MethodSignature> implemented, 
                                              Class<?> classToSearch) throws ImplerException {
         for (Method method : classToSearch.getDeclaredMethods()) {
             if (Modifier.isAbstract(method.getModifiers() & Modifier.methodModifiers())) {
-                if (!implemented.containsKey(new MethodSignature(method))
-                    && !Modifier.isPrivate(method.getModifiers()) && !Modifier.isFinal(method.getModifiers())) {
+                if (!implemented.containsKey(new MethodSignature(method)) && !Modifier.isPrivate(method.getModifiers
+                        ()) && !Modifier.isFinal(method.getModifiers())) {
                     addMethod(toImplement, method);
                 }
             } else {
                 addMethod(implemented, method);
             }
         }
-        
+
         for (Method method : classToSearch.getMethods()) {
             if (Modifier.isAbstract(method.getModifiers())) {
-                if (!implemented.containsKey(new MethodSignature(method))
-                    && !Modifier.isFinal(method.getModifiers())) {
+                if (!implemented.containsKey(new MethodSignature(method)) && !Modifier.isFinal(method.getModifiers())) {
                     addMethod(toImplement, method);
                 }
             } else {
@@ -183,8 +171,19 @@ public class ImplementHelper {
         }
     }
 
+    private List<Constructor> getConstructorsToSuper() {
+        List<Constructor> constructors = new ArrayList<>();
+        for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
+            if (Modifier.isPrivate(constructor.getModifiers())) {
+                continue;
+            }
+            constructors.add(constructor);
+        }
+        return constructors;
+    }
+
     private Map<String, Map<String, Type>> createGenericNamesTranslation() {
-        Map<String, Map<String, Type>> genericNamesTranslation = new HashMap<>(); //Answer
+        Map<String, Map<String, Type>> genericNamesTranslation = new HashMap<>();
         Map<String, Type> passedParams = new HashMap<>();
         for (TypeVariable<?> variable : clazz.getTypeParameters()) {
             passedParams.put(variable.getName(), variable);
@@ -199,7 +198,7 @@ public class ImplementHelper {
             writer.println();
         }
     }
-    
+
     private void writeClassDeclaration(PrintWriter writer) throws IOException {
         String modifiers;
         if (clazz.isInterface()) {
@@ -353,7 +352,7 @@ public class ImplementHelper {
             return "?";
         }
     }
-    
+
     private void writeMethodImplementations(PrintWriter writer) throws IOException {
         for (Method method : methodsToOverride) {
             if (method.getAnnotation(Deprecated.class) != null) {
@@ -365,12 +364,11 @@ public class ImplementHelper {
             } else if (Modifier.isPublic(method.getModifiers())) {
                 writer.print(TAB + "public ");
             } else if (Modifier.isPrivate(method.getModifiers())) {
-                throw new IllegalArgumentException("Don't support overriding private methods");
+                throw new IllegalStateException("Can't override private methods");
             } else {
-                //Package-local
                 writer.print(TAB);
             }
-            
+
             String genericArgumentsPrefix = generateGenericParamsPrefix(method.getTypeParameters());
             if (!genericArgumentsPrefix.isEmpty()) {
                 writer.print(genericArgumentsPrefix + " ");
