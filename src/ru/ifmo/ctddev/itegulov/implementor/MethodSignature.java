@@ -2,16 +2,32 @@ package ru.ifmo.ctddev.itegulov.implementor;
 
 import java.lang.reflect.*;
 
+
 /**
-* @author Daniyar Itegulov
-*/
+ * Represents methods' equivalence by their generic signatures
+ *
+ * @author Daniyar Itegulov
+ */
 class MethodSignature {
+    /** Value is used for method storage. */
     private final Method method;
 
+    /**
+     * Initializes a new {@code MethodSignature} so that it represents
+     * the signature of method argument.
+     *
+     * @param method
+     *        Source of method signature
+     */
     public MethodSignature(Method method) {
         this.method = method;
     }
 
+    /**
+     * @param thisType first type to check
+     * @param thatType second type to check
+     * @return {@code true}, if two types differs only in type variable, {@code false} otherwise
+     */
     @SuppressWarnings("RedundantIfStatement")
     private static boolean differsInTypeVariable(Type thisType, Type thatType) {
         if (thisType instanceof ParameterizedType) {
@@ -97,6 +113,10 @@ class MethodSignature {
         return method.getName().hashCode();
     }
 
+    /**
+     * @return method
+     * @see MethodSignature#method
+     */
     public Method getMethod() {
         return method;
     }

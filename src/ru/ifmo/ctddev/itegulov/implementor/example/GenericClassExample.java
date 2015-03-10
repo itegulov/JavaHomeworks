@@ -7,8 +7,8 @@ import java.util.stream.Stream;
 /**
  * @author Daniyar Itegulov
  */
-public abstract class GenericClassExample<E extends AutoCloseable & Stream> extends SecondMiddleClass implements Comparable<String> {
-    public abstract <D> D getABC();
+public abstract class GenericClassExample<E extends AutoCloseable & Stream> extends SecondMiddleClass implements Comparable<String[]> {
+    public abstract <D> List<? super D> getABC();
     
     public abstract E getE();
     
