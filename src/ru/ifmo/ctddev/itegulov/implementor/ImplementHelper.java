@@ -3,7 +3,6 @@ package ru.ifmo.ctddev.itegulov.implementor;
 import info.kgeorgiy.java.advanced.implementor.ImplerException;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.lang.reflect.*;
 import java.util.*;
 
@@ -16,30 +15,23 @@ public class ImplementHelper {
      */
     private static final String TAB = "    ";
 
-    /**
-     * The value is used for initial class storage.
-     */
+    /** String value representing line separator of current OS. */
+    private static final String LS = System.lineSeparator();
+
+    /** The value is used for initial class storage. */
     private final Class<?> clazz;
 
-    /**
-     * The value is used for new class' name storage.
-     */
+    /** The value is used for new class' name storage. */
     private final String newClassName;
 
-    /**
-     * The value is used for {@link #clazz} methods, which need to be overridden storage.
-     */
+    /** The value is used for {@link #clazz} methods, which need to be overridden storage. */
     private final List<Method> methodsToOverride;
 
-    /**
-     * The value is used for {@link #clazz} constructors, which need to be supered storage.
-     */
+    /** The value is used for {@link #clazz} constructors, which need to be supered storage. */
     private final List<Constructor> constructorsToSuper;
 
-    /**
-     * The value is used for place, where to write {@link #clazz} implementation storage.
-     */
-    private final PrintWriter writer;
+    /** The value is used for place, where to write {@link #clazz} implementation storage. */
+    private final Appendable out;
 
     /**
      * The value is used for generic type variables' deduction information storage.
@@ -53,10 +45,10 @@ public class ImplementHelper {
      *
      * @param clazz        Class to implement
      * @param newClassName Name of class to be generated
-     * @param writer       {@link java.io.PrintWriter} where the implementation will be placed
+     * @param out       {@link java.io.PrintWriter} where the implementation will be placed
      * @throws ImplerException If there is no correct implementation for specified class
      */
-    public ImplementHelper(Class clazz, String newClassName, PrintWriter writer) throws ImplerException {
+    public ImplementHelper(Class clazz, String newClassName, Appendable out) throws ImplerException {
         if (clazz.isPrimitive()) {
             throw new ImplerException("Can't implement primitives");
         }
@@ -79,7 +71,7 @@ public class ImplementHelper {
         }
         this.constructorsToSuper = getConstructorsToSuper();
         this.genericNamesTranslation = createGenericNamesTranslation();
-        this.writer = writer;
+        this.out = out;
     }
 
     private static void initGenericNamesTranslation(Map<String, Type> passedParams,
@@ -122,6 +114,10 @@ public class ImplementHelper {
         }
     }
 
+    /**
+     * @param type {@link Type} to check
+     * @return {@code true} if specified type contains generics, {@code false} otherwise
+     */
     private static boolean isGeneric(Type type) {
         if (type instanceof ParameterizedType) {
             return true;
@@ -193,6 +189,10 @@ public class ImplementHelper {
         }
     }
 
+    /**
+     * @param type Type, which default value to get
+     * @return Some {@code String} represented correct value for specified type
+     */
     private static String getDefaultValue(Type type) {
         if (type instanceof Class<?>) {
             Class<?> clazz = (Class<?>) type;
@@ -206,6 +206,10 @@ public class ImplementHelper {
         }
     }
 
+    /**
+     * @param typeParameters Array of type variables to process
+     * @return Set, containing names of specified type variables
+     */
     private static Set<String> getSetOfNames(TypeVariable<?>[] typeParameters) {
         Set<String> names = new HashSet<>();
         for (TypeVariable<?> var : typeParameters) {
@@ -214,6 +218,9 @@ public class ImplementHelper {
         return names;
     }
 
+    /**
+     * @return List of non-private constructors from {@link #clazz}, which can be supered
+     */
     private List<Constructor> getConstructorsToSuper() {
         List<Constructor> constructors = new ArrayList<>();
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
@@ -233,39 +240,6 @@ public class ImplementHelper {
         }
         initGenericNamesTranslation(passedParams, genericNamesTranslation, clazz);
         return genericNamesTranslation;
-    }
-
-    /**
-     * Writes implementation's package name to {@link #writer}
-     *
-     * @throws IOException If couldn't write to {@link #writer}
-     */
-    private void writePackage() throws IOException {
-        if (clazz.getPackage() != null) {
-            writer.println("package " + clazz.getPackage().getName() + ";");
-            writer.println();
-        }
-    }
-
-    /**
-     * Writes implementation's class declaration to {@link #writer}
-     *
-     * @throws IOException If couldn't write to {@link #writer}
-     */
-    private void writeClassDeclaration() throws IOException {
-        String modifiers;
-        if (clazz.isInterface()) {
-            modifiers = Modifier.toString(clazz.getModifiers() & Modifier.interfaceModifiers() & ~Modifier.ABSTRACT);
-        } else {
-            modifiers = Modifier.toString(clazz.getModifiers() & Modifier.classModifiers() & ~Modifier.ABSTRACT);
-        }
-        if (!modifiers.equals("")) {
-            modifiers += " ";
-        }
-        writer.print(modifiers);
-        writer.print("class " + newClassName + generateGenericParamsPrefix(clazz.getTypeParameters()));
-        writer.print(clazz.isInterface() ? " implements " : " extends ");
-        writer.println(clazz.getCanonicalName() + generateGenericParamsSuffix(clazz.getTypeParameters()) + " {");
     }
 
     private String generateGenericParamsPrefix(TypeVariable<?>[] genericArguments) {
@@ -406,88 +380,90 @@ public class ImplementHelper {
         }
     }
 
-    private void writeMethodImplementations() throws IOException {
-        for (Method method : methodsToOverride) {
-            if (method.getAnnotation(Deprecated.class) != null) {
-                writer.println(TAB + "@Deprecated");
-            }
-            writer.println(TAB + "@Override");
-            if (Modifier.isProtected(method.getModifiers())) {
-                writer.print(TAB + "protected ");
-            } else if (Modifier.isPublic(method.getModifiers())) {
-                writer.print(TAB + "public ");
-            } else if (Modifier.isPrivate(method.getModifiers())) {
-                throw new IllegalStateException("Can't override private methods");
-            } else {
-                writer.print(TAB);
-            }
-
-            String genericArgumentsPrefix = generateGenericParamsPrefix(method.getTypeParameters());
-            if (!genericArgumentsPrefix.isEmpty()) {
-                writer.print(genericArgumentsPrefix + " ");
-            }
-
-            Set<String> set = getSetOfNames(method.getTypeParameters());
-            writer.print(toStringGenericTypedClass(method.getGenericReturnType(), set) + " ");
-            writer.print(method.getName() + "(");
-            Parameter[] parameters = method.getParameters();
-            Type[] genericParameterTypes = method.getGenericParameterTypes();
-            for (int i = 0; i < parameters.length; i++) {
-                writer.print(toStringGenericTypedClass(genericParameterTypes[i], set));
-                writer.print(" " + parameters[i].getName());
-                if (i != parameters.length - 1) {
-                    writer.print(", ");
-                }
-            }
-            writer.println(") {");
-            if (!method.getReturnType().equals(Void.TYPE)) {
-                writer.println(TAB + TAB + "return " + getDefaultValue(method.getReturnType()) + ";");
-            }
-            writer.println(TAB + "}");
-            writer.println();
+    /**
+     * Writes implementation's package name to {@link #out}
+     *
+     * @throws IOException
+     *         If couldn't write to {@link #out}
+     */
+    private void writePackage() throws IOException {
+        if (clazz.getPackage() != null) {
+            out.append("package ").append(clazz.getPackage().getName()).append(";").append(LS).append(LS);
         }
     }
 
-    private void writeConstructors() throws ImplerException {
+    /**
+     * Writes implementation's class declaration to {@link #out}
+     *
+     * @throws IOException
+     *         If couldn't write to {@link #out}
+     */
+    private void writeClassDeclaration() throws IOException {
+        String modifiers;
+        if (clazz.isInterface()) {
+            modifiers = Modifier.toString(clazz.getModifiers() & Modifier.interfaceModifiers() & ~Modifier.ABSTRACT);
+        } else {
+            modifiers = Modifier.toString(clazz.getModifiers() & Modifier.classModifiers() & ~Modifier.ABSTRACT);
+        }
+        if (!modifiers.equals("")) {
+            modifiers += " ";
+        }
+        out.append(modifiers);
+        out.append("class ").append(newClassName).append(generateGenericParamsPrefix(clazz.getTypeParameters()));
+        out.append(clazz.isInterface() ? " implements " : " extends ");
+        out.append(clazz.getCanonicalName()).append(generateGenericParamsSuffix(clazz.getTypeParameters()));
+        out.append(" {").append(LS);
+    }
+
+    /**
+     * Writes implementation's class constructors to {@link #out}
+     *
+     * @throws IOException
+     *         If couldn't write to {@link #out}
+     *
+     * @throws ImplerException
+     *         If there is no non-private constructor in {@link #clazz}
+     */
+    private void writeConstructors() throws ImplerException, IOException {
         for (Constructor<?> constructor : constructorsToSuper) {
             if (Modifier.isPublic(constructor.getModifiers())) {
-                writer.print(TAB + "public " + newClassName);
+                out.append(TAB + "public ").append(newClassName);
             } else if (Modifier.isProtected(constructor.getModifiers())) {
-                writer.print(TAB + "protected " + newClassName);
+                out.append(TAB + "protected ").append(newClassName);
             } else {
-                writer.print(TAB + newClassName);
+                out.append(TAB).append(newClassName);
             }
-            writer.print("(");
+            out.append("(");
             Type[] genericParameterTypes = constructor.getGenericParameterTypes();
             Parameter[] parameters = constructor.getParameters();
             for (int i = 0; i < genericParameterTypes.length; i++) {
-                writer.print(toStringGenericTypedClass(genericParameterTypes[i], new HashSet<>())
-                        + " " + parameters[i].getName());
+                out.append(toStringGenericTypedClass(genericParameterTypes[i], new HashSet<>()));
+                out.append(" ").append(parameters[i].getName());
                 if (i != genericParameterTypes.length - 1) {
-                    writer.print(", ");
+                    out.append(", ");
                 }
             }
-            writer.print(")");
+            out.append(")");
             Type[] exceptions = constructor.getGenericExceptionTypes();
             if (exceptions.length > 0) {
-                writer.print(" throws ");
+                out.append(" throws ");
                 for (int i = 0; i < exceptions.length; i++) {
-                    writer.print(toStringGenericTypedClass(exceptions[i], new HashSet<>()));
+                    out.append(toStringGenericTypedClass(exceptions[i], new HashSet<>()));
                     if (i != exceptions.length - 1) {
-                        writer.print(", ");
+                        out.append(", ");
                     }
                 }
             }
-            writer.println(" {");
-            writer.print(TAB + TAB + "super(");
+            out.append(" {").append(LS);
+            out.append(TAB + TAB + "super(");
             for (int i = 0; i < genericParameterTypes.length; i++) {
-                writer.print(parameters[i].getName());
+                out.append(parameters[i].getName());
                 if (i != genericParameterTypes.length - 1) {
-                    writer.print(", ");
+                    out.append(", ");
                 }
             }
-            writer.println(");");
-            writer.println(TAB + "}");
+            out.append(");").append(LS);
+            out.append(TAB + "}").append(LS);
         }
 
         if (!clazz.isInterface() && constructorsToSuper.size() == 0) {
@@ -496,19 +472,70 @@ public class ImplementHelper {
     }
 
     /**
+     * Writes implementation class' declaration to {@link #out}
+     *
+     * @throws IOException
+     *         If couldn't write to {@link #out}
+     */
+    private void writeMethodImplementations() throws IOException {
+        for (Method method : methodsToOverride) {
+            if (method.getAnnotation(Deprecated.class) != null) {
+                out.append(TAB + "@Deprecated").append(LS);
+            }
+            out.append(TAB + "@Override").append(LS);
+            if (Modifier.isProtected(method.getModifiers())) {
+                out.append(TAB + "protected ");
+            } else if (Modifier.isPublic(method.getModifiers())) {
+                out.append(TAB + "public ");
+            } else if (Modifier.isPrivate(method.getModifiers())) {
+                throw new IllegalStateException("Can't override private methods");
+            } else {
+                out.append(TAB);
+            }
+
+            String genericArgumentsPrefix = generateGenericParamsPrefix(method.getTypeParameters());
+            if (!genericArgumentsPrefix.isEmpty()) {
+                out.append(genericArgumentsPrefix).append(" ");
+            }
+
+            Set<String> set = getSetOfNames(method.getTypeParameters());
+            out.append(toStringGenericTypedClass(method.getGenericReturnType(), set)).append(" ");
+            out.append(method.getName()).append("(");
+            Parameter[] parameters = method.getParameters();
+            Type[] genericParameterTypes = method.getGenericParameterTypes();
+            for (int i = 0; i < parameters.length; i++) {
+                out.append(toStringGenericTypedClass(genericParameterTypes[i], set));
+                out.append(" ").append(parameters[i].getName());
+                if (i != parameters.length - 1) {
+                    out.append(", ");
+                }
+            }
+            out.append(") {").append(LS);
+            if (!method.getReturnType().equals(Void.TYPE)) {
+                out.append(TAB + TAB + "return ").append(getDefaultValue(method.getReturnType())).append(";").append(LS);
+            }
+            out.append(TAB + "}").append(LS);
+            out.append(LS);
+        }
+    }
+
+    /**
      * Produces code implementing current class or interface {@link #clazz}.
-     * <p>
-     * Generated source code implementing {@link #clazz} should be placed in
+     *
+     * Generated source code implementing {@link #clazz} will be placed in
      * the file specified by {@link java.io.PrintWriter} argument.
      *
-     * @throws IOException     If couldn't write to specified {@link java.io.PrintWriter}
-     * @throws ImplerException If there is no correct implementation for {@link #clazz}
+     * @throws IOException
+     *         If couldn't write to {@link #out}
+     *
+     * @throws ImplerException
+     *         If there is no correct implementation for {@link #clazz}
      */
-    public void implement() throws IOException, ImplerException {
+    public void implement() throws ImplerException, IOException {
         writePackage();
         writeClassDeclaration();
         writeConstructors();
         writeMethodImplementations();
-        writer.write("}");
+        out.append("}");
     }
 }

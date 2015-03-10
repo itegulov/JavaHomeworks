@@ -4,10 +4,8 @@ import info.kgeorgiy.java.advanced.implementor.Impler;
 import info.kgeorgiy.java.advanced.implementor.ImplerException;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 
 /**
  * Implementation of interface Impler, with generics supported
@@ -26,9 +24,9 @@ public class Implementor implements Impler {
         if (!file.getParentFile().exists() && !file.getParentFile().mkdirs()) {
             throw new ImplerException("Couldn't create dirs");
         }
-        try (PrintWriter printWriter = new PrintWriter(Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8))) {
+        try (FileWriter out = new FileWriter(file, true)) {
             try {
-                ImplementHelper implementHelper = new ImplementHelper(token, token.getSimpleName() + "Impl", printWriter);
+                ImplementHelper implementHelper = new ImplementHelper(token, token.getSimpleName() + "Impl", out);
                 implementHelper.implement();
             } catch (IOException e) {
                 throw new ImplerException("Couldn't write to output file");
