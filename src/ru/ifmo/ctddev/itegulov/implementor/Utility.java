@@ -18,10 +18,10 @@ class Utility {
      *
      * @return file, representing temporary directory
      * @throws IOException
-     *         if couldn't create temporary directory
+     *         if some IO error occurs
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    public static File mkTmpDir() throws IOException {
+    public static File createTmpDirectory() throws IOException {
         File file = File.createTempFile("implementor_tmp_", "");
         file.delete();
         file.mkdir();
@@ -34,9 +34,9 @@ class Utility {
      * @param dir
      *        file, representing directory to remove
      * @throws IOException
-     *         if couldn't delete directory
+     *         if couldn't delete some file
      */
-    public static void rmDir(File dir) throws IOException {
+    public static void deleteDirectory(File dir) throws IOException {
         Files.walkFileTree(Paths.get(dir.getPath()), new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {

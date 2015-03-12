@@ -15,6 +15,17 @@ import java.io.File;
  * @author Daniyar Itegulov
  */
 public class Runner {
+
+    /**
+     * Main function, which performs exactly the same thing as
+     * {@link ru.ifmo.ctddev.itegulov.implementor.Implementor#implement} or
+     * {@link ru.ifmo.ctddev.itegulov.implementor.Implementor#implementJar}
+     * (depends on -jar argument) using <code>args</code> as arguments.
+     *
+     * @param args
+     *        array of string arguments, which can contain -jar and
+     *        arguments for <code>Implementor</code>
+     */
     public static void main(String[] args) {
         if (args == null || args.length < 2 || args[0] == null || args[1] == null) {
             throw new IllegalArgumentException("Invalid usage");

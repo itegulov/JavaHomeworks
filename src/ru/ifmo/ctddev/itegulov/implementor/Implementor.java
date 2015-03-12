@@ -63,7 +63,7 @@ public class Implementor implements Impler, JarImpler {
         File implDir = null;
         try {
             try {
-                implDir = Utility.mkTmpDir();
+                implDir = Utility.createTmpDirectory();
             } catch (IOException e) {
                 throw new ImplerException("Can't create temporary directory for implementation (source) files", e);
             }
@@ -77,7 +77,7 @@ public class Implementor implements Impler, JarImpler {
         } finally {
             if (implDir != null && implDir.exists()) {
                 try {
-                    Utility.rmDir(implDir);
+                    Utility.deleteDirectory(implDir);
                 } catch (IOException ignored) {
                 }
             }

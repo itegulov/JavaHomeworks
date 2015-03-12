@@ -13,14 +13,14 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 /**
- * Allows to compile java sources to jar file
+ * Allows to compile java sources to jar file.
  *
  * @author Daniyar Itegulov
  */
 class JarCompiler {
 
     /**
-     * Is being thrown when compiler fails to compile generated implementations' files
+     * Is thrown when compiler fails to compile generated implementations' files.
      */
     protected static class CompilerException extends Exception {
 
@@ -34,7 +34,7 @@ class JarCompiler {
     private File[] sourceFiles;
 
     /**
-     * Class constructor, specifying what source (.java) files to compile into jar file
+     * Class constructor, specifying what source (.java) files to compile into jar file.
      *
      * @param sourceFiles
      *        array of files, which need to be compiled into jar file
@@ -44,10 +44,10 @@ class JarCompiler {
     }
 
     /**
-     * Compiles files to <code>jarFile</code>
+     * Compiles files and sends them to <code>jarFile</code>.
      *
      * @param jarFile
-     *        resulting <tt>.jar</tt> file
+     *        resulting .jar file
      *
      * @throws IOException
      *         if some IO error occurs
@@ -59,7 +59,7 @@ class JarCompiler {
         File buildDir = null;
         try {
             try {
-                buildDir = Utility.mkTmpDir();
+                buildDir = Utility.createTmpDirectory();
             } catch (IOException e) {
                 throw new IOException("Can't create temporary directory for class files", e);
             }
@@ -68,7 +68,7 @@ class JarCompiler {
         } finally {
             if (buildDir != null && buildDir.exists()) {
                 try {
-                    Utility.rmDir(buildDir);
+                    Utility.deleteDirectory(buildDir);
                 } catch (IOException ignored) {
                 }
             }
@@ -76,7 +76,7 @@ class JarCompiler {
     }
 
     /**
-     * Compiles classes
+     * Compiles classes and stores them at <code>buildDir</code>.
      *
      * @param buildDir
      *        file, to which we put built classes
@@ -96,12 +96,15 @@ class JarCompiler {
     }
 
     /**
-     * Executes compiler
+     * Executes compiler on all files <code>files</code> and
+     * stores output at <code>outDir</code>.
      *
      * @param files
-     *        files to compile
+     *        list of strings, representing files to compile
+     *
      * @param outDir
-     *        where to put built classes
+     *        file, representing place, where to put built classes
+     *
      * @return compiler's exit code
      */
     private int runCompiler(List<String> files, File outDir) {
@@ -117,7 +120,8 @@ class JarCompiler {
     }
 
     /**
-     * Builds jar file from built classes
+     * Builds jar file from built classes at <code>buildDir</code> directory
+     * and combines them into jar file <code>jarFile</code>.
      *
      * @param buildDir
      *        file, representing directory where built files are located
@@ -126,8 +130,7 @@ class JarCompiler {
      *        file, representing jar file, which must be created
      *
      * @throws IOException
-     *         if failed to find <code>jarFile</code> or failed to
-     *         write to jar
+     *         if some IO error occurs
      */
     private void buildJar(File buildDir, File jarFile) throws IOException {
         Manifest manifest = new Manifest();
