@@ -11,6 +11,7 @@ import java.io.IOException;
  * Implementation of interface Impler, with generics supported
  *
  * @author Daniyar Itegulov
+ * @see ru.ifmo.ctddev.itegulov.implementor.ImplementHelper
  */
 public class Implementor implements Impler {
 

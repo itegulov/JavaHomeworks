@@ -5,16 +5,30 @@ import java.lang.reflect.*;
 
 /**
  * Represents methods' equivalence by their generic signatures
+ * <p>
+ * Signatures are constants; their value cannot be changed in
+ * any way after they instantiated.
+ * <p>
+ * Some examples of equivalent methods (by their signature):
+ * <blockquote><pre>
+ *     void foo(E e);
+ *     void foo(Object o);
+ *
+ *     void bar(E[] e);
+ *     void bar(Object[] o);
+ * </pre></blockquote><p>
  *
  * @author Daniyar Itegulov
+ * @see java.lang.reflect.Method
+ * @see ru.ifmo.ctddev.itegulov.implementor.Implementor
+ * @see ru.ifmo.ctddev.itegulov.implementor.ImplementHelper
  */
 class MethodSignature {
-    /** Value is used for method storage. */
+    /** Method, which signature is represented. */
     private final Method method;
 
     /**
-     * Initializes a new {@code MethodSignature} so that it represents
-     * the signature of method argument.
+     * Class constructor, specifying what method's signature to represent
      *
      * @param method
      *        Source of method signature
@@ -24,9 +38,14 @@ class MethodSignature {
     }
 
     /**
-     * @param thisType first type to check
-     * @param thatType second type to check
-     * @return {@code true}, if two types differs only in type variable, {@code false} otherwise
+     * @param thisType
+     *        first type to check
+     *
+     * @param thatType
+     *        second type to check
+     *
+     * @return <code>true</code>, if two types differs only in type variable,
+     *         <code>false</code> otherwise
      */
     @SuppressWarnings("RedundantIfStatement")
     private static boolean differsInTypeVariable(Type thisType, Type thatType) {
@@ -114,8 +133,7 @@ class MethodSignature {
     }
 
     /**
-     * @return method
-     * @see MethodSignature#method
+     * @return method Method, which signature is represented
      */
     public Method getMethod() {
         return method;

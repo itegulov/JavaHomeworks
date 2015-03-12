@@ -8,45 +8,68 @@ import java.util.*;
 
 /**
  * @author Daniyar Itegulov
+ * @version 1.3
+ * @see ru.ifmo.ctddev.itegulov.implementor.Implementor
  */
-public class ImplementHelper {
+class ImplementHelper {
     /**
-     * String value for expanded tab.
+     * Expanded tab.
      */
     private static final String TAB = "    ";
 
-    /** String value representing line separator of current OS. */
+    /**
+     * Line separator of current OS.
+     * <p>
+     * Equivalent to <code>System.lineSeparator()</code>
+     * */
     private static final String LS = System.lineSeparator();
 
-    /** The value is used for initial class storage. */
+    /** Initial class. */
     private final Class<?> clazz;
 
-    /** The value is used for new class' name storage. */
+    /** New class' name. */
     private final String newClassName;
 
-    /** The value is used for {@link #clazz} methods, which need to be overridden storage. */
+    /** Initial class' abstract methods, which need to be overridden. */
     private final List<Method> methodsToOverride;
 
-    /** The value is used for {@link #clazz} constructors, which need to be supered storage. */
+    /** Initial class' non-private constructors, which need to be supered. */
     private final List<Constructor> constructorsToSuper;
 
-    /** The value is used for place, where to write {@link #clazz} implementation storage. */
+    /** Place, where to write new class. */
     private final Appendable out;
 
     /**
-     * The value is used for generic type variables' deduction information storage.
-     * {DeclaringClassName -> {NameOfTypeVariable -> RealType}} TODO: write more info
+     * Type variables' deduction information.
+     * <p>
+     * Keys in this <code>Map</code> stand for declaring class name. Whereas values stand for <code>Map</code>,
+     * which contains keys as type variable names and values as their real types.
+     *
+     * For example if you have <code>class MyClass implements Comparable<String></code>, then this
+     * <code>Map</code> will contain {"Comparable", {"T", "String"}}.
      */
     private final Map<String, Map<String, Type>> genericNamesTranslation;
 
     /**
-     * Initializes a new {@code ImplementHelper} so that it will be used for generating specified class'
-     * implementation, gives him specified name and writes to specified {@link java.io.PrintWriter}
+     * Class constructor, specifying which class to implement (<code>clazz</code>), name to give to the implementation
+     * (<code>newClassName</code> and place, where to write it (<code>out</code>).
      *
-     * @param clazz        Class to implement
-     * @param newClassName Name of class to be generated
-     * @param out       {@link java.io.PrintWriter} where the implementation will be placed
-     * @throws ImplerException If there is no correct implementation for specified class
+     * @param clazz
+     *        class to implement
+     *
+     * @param newClassName
+     *        name of class to be generated
+     *
+     * @param out
+     *        where the implementation will be placed
+     *
+     * @throws ImplerException
+     *         If any of the following is true:
+     *         <ul>
+     *           <li> {@code clazz} is primitive.
+     *           <li> {@code clazz} is array.
+     *           <li> {@code clazz} is final.
+     *         </ul>
      */
     public ImplementHelper(Class clazz, String newClassName, Appendable out) throws ImplerException {
         if (clazz.isPrimitive()) {
@@ -74,6 +97,24 @@ public class ImplementHelper {
         this.out = out;
     }
 
+    /**
+     * Deducts all type variables for <code>clazz</code> and all it's ancestors, supposing, that
+     * <code>genericNamesTranslation</code> contains all deduct information about descendant classes.
+     *
+     * @param passedParams
+     *        Map, which contains keys as type variable names and values as their real types for
+     *        <code>clazz</code>.
+     *
+     * @param genericNamesTranslation
+     *        Map, that contains info about type variable deduction. Keys in this <code>Map</code>
+     *        stand for declaring class name. Whereas values stand for <code>Map</code>, which
+     *        contains keys as type variable names and values as their real types.
+     *
+     * @param clazz
+     *        class, which will be deducted (all it ancestors also will be deducted)
+     *
+     * @see #parseClassParent(java.lang.reflect.Type, java.util.Map) 
+     */
     private static void initGenericNamesTranslation(Map<String, Type> passedParams,
                                                     Map<String, Map<String, Type>> genericNamesTranslation,
                                                     Class<?> clazz) {
@@ -101,6 +142,23 @@ public class ImplementHelper {
         parseClassParent(clazz.getGenericSuperclass(), genericNamesTranslation);
     }
 
+    /**
+     * Deducts type variable in <code>parent</code> and it's ancestors, if it is necessary
+     * <p>
+     * If <code>parent instanceof ParameterizedType</code>, then it's type variables will
+     * be deducted and added to <code>genericNamesTranslation</code>. Assumes, that all
+     * information about descendant classes is provided in <code>genericNamesTranslation</code>
+     *
+     * @param parent
+     *        class, which will be deducted if necessary
+     *
+     * @param genericNamesTranslation
+     *        Map, that contains info about type variable deduction. Keys in this <code>Map</code>
+     *        stand for declaring class name. Whereas values stand for <code>Map</code>, which
+     *        contains keys as type variable names and values as their real types.
+     *
+     *  @see #initGenericNamesTranslation(java.util.Map, java.util.Map, Class)
+     */
     private static void parseClassParent(Type parent, Map<String, Map<String, Type>> genericNamesTranslation) {
         if (parent instanceof ParameterizedType) {
             Map<String, Type> parentArguments = new HashMap<>();
@@ -115,8 +173,12 @@ public class ImplementHelper {
     }
 
     /**
-     * @param type {@link Type} to check
-     * @return {@code true} if specified type contains generics, {@code false} otherwise
+     * Checks if <code>type</code> contains generics
+     *
+     * @param type
+     *        type to check
+     *
+     * @return <code>true</code> if specified type contains generics, <code>false</code> otherwise
      */
     private static boolean isGeneric(Type type) {
         if (type instanceof ParameterizedType) {
@@ -134,7 +196,19 @@ public class ImplementHelper {
         }
     }
 
-    private static void addMethod(Map<MethodSignature, MethodSignature> map, Method method) throws ImplerException {
+    /**
+     * Converts {@link java.lang.reflect.Method} to {@link ru.ifmo.ctddev.itegulov.implementor.MethodSignature}
+     * and puts it to <code>Map</code>, if there is no similar <code>MethodSignature</code>.
+     *
+     * @param map
+     *        map, where method signatures are stored
+     *
+     * @param method
+     *        method, which needs to be stored
+     *
+     * @see MethodSignature#equals(Object)
+     */
+    private static void addMethod(Map<MethodSignature, MethodSignature> map, Method method) {
         MethodSignature signature = new MethodSignature(method);
         MethodSignature oldSignature = map.get(signature);
         if (oldSignature == null) {
@@ -161,12 +235,32 @@ public class ImplementHelper {
         }
     }
 
+    /**
+     * Fetches all methods, which need to be overridden in specified class and also all it's
+     * ancestors.
+     * <p>
+     * It will provide you only public and protected methods, which have no implementation in
+     * <code>classToSearch</code> and it's ancestors.
+     *
+     * @param toImplement
+     *        map, used as storage for methods, which need implementation
+     *
+     * @param implemented
+     *        map, used as storage for methods, which have implementation
+     *
+     * @param classToSearch
+     *        class, which must be observed
+     *
+     * @see #addMethod(java.util.Map, java.lang.reflect.Method)
+     */
     private static void getMethodsToOverride(Map<MethodSignature, MethodSignature> toImplement,
                                              Map<MethodSignature, MethodSignature> implemented,
-                                             Class<?> classToSearch) throws ImplerException {
+                                             Class<?> classToSearch) {
         for (Method method : classToSearch.getDeclaredMethods()) {
             if (Modifier.isAbstract(method.getModifiers() & Modifier.methodModifiers())) {
-                if (!implemented.containsKey(new MethodSignature(method)) && !Modifier.isPrivate(method.getModifiers()) && !Modifier.isFinal(method.getModifiers())) {
+                if (!implemented.containsKey(new MethodSignature(method))
+                        && !Modifier.isPrivate(method.getModifiers())
+                        && !Modifier.isFinal(method.getModifiers())) {
                     addMethod(toImplement, method);
                 }
             } else {
@@ -190,8 +284,14 @@ public class ImplementHelper {
     }
 
     /**
-     * @param type Type, which default value to get
-     * @return Some {@code String} represented correct value for specified type
+     * Gets some correct value for <code>type</code>
+     * <p>
+     * It returns only <code>0</code>, <code>false</code> and <code>null</code> really.
+     *
+     * @param type
+     *        type, which default value to get
+     *
+     * @return string, representing some correct value for specified type
      */
     private static String getDefaultValue(Type type) {
         if (type instanceof Class<?>) {
@@ -207,8 +307,12 @@ public class ImplementHelper {
     }
 
     /**
-     * @param typeParameters Array of type variables to process
-     * @return Set, containing names of specified type variables
+     * Gets only unique type variables from <code>typeParameters</code>
+     *
+     * @param typeParameters
+     *        an array of type variables to process
+     *
+     * @return set, containing names of specified type variables
      */
     private static Set<String> getSetOfNames(TypeVariable<?>[] typeParameters) {
         Set<String> names = new HashSet<>();
@@ -219,7 +323,7 @@ public class ImplementHelper {
     }
 
     /**
-     * @return List of non-private constructors from {@link #clazz}, which can be supered
+     * @return List of non-private constructors from initial class, which can be supered.
      */
     private List<Constructor> getConstructorsToSuper() {
         List<Constructor> constructors = new ArrayList<>();
@@ -232,6 +336,13 @@ public class ImplementHelper {
         return constructors;
     }
 
+    /**
+     * Deducts generic type variable information for initial class.
+     *
+     * @return  Map, satisfying {@link #genericNamesTranslation} conditions
+     *
+     * @see #initGenericNamesTranslation(java.util.Map, java.util.Map, Class)
+     */
     private Map<String, Map<String, Type>> createGenericNamesTranslation() {
         Map<String, Map<String, Type>> genericNamesTranslation = new HashMap<>();
         Map<String, Type> passedParams = new HashMap<>();
@@ -242,6 +353,26 @@ public class ImplementHelper {
         return genericNamesTranslation;
     }
 
+    /**
+     * Gets <code>String</code>, containing representation of new class' type variables with
+     * bounds.
+     * <p>
+     * It will be empty string if no type variables present, otherwise it will be given
+     * in this form: "<" + all type variables written and separated by comma maybe with
+     * bounds + ">".
+     *
+     * For example if you have <code>class MyClass<E extends Exception, T extends Stream>
+     * implements Comparable<String></code>, then this method will give you "<E extends
+     * Exception, T extends Stream>"
+     *
+     * @param genericArguments
+     *        an array of type variables, which stands for initial class' type parameters
+     *
+     * @return string, representing type variables with bounds, used in this class
+     *
+     * @see #generateGenericParamsSuffix(java.lang.reflect.TypeVariable[])
+     * @see #getName(java.lang.reflect.TypeVariable, java.util.Set)
+     */
     private String generateGenericParamsPrefix(TypeVariable<?>[] genericArguments) {
         Set<String> setOfGenericParamsNames = new HashSet<>();
         for (TypeVariable<?> typeVariable : genericArguments) {
@@ -273,6 +404,25 @@ public class ImplementHelper {
         return result.toString();
     }
 
+    /**
+     * Gets <code>String</code>, containing representation of new class' type variables
+     * without bounds.
+     * <p>
+     * It will be empty string if no type variables present, otherwise it will be given
+     * in this form: "<" + all type variables written and separated by comma without
+     * bounds + ">".
+     *
+     * For example if you have <code>class MyClass<E extends Exception, T extends Stream>
+     * implements Comparable<String></code>, then this method will give you "<E, T>"
+     *
+     * @param genericArguments
+     *        an array of type variables, which stands for initial class' type parameters
+     *
+     * @return string, representing type variables without bounds, used in this class
+     *
+     * @see #generateGenericParamsPrefix(java.lang.reflect.TypeVariable[])
+     * @see #getName(java.lang.reflect.TypeVariable, java.util.Set)
+     */
     private String generateGenericParamsSuffix(TypeVariable<?>[] genericArguments) {
         Set<String> setOfGenericParamsNames = new HashSet<>();
         for (TypeVariable<?> var : genericArguments) {
@@ -294,6 +444,23 @@ public class ImplementHelper {
         return result.toString();
     }
 
+    /**
+     * Generates string representation of type variable, using deduction
+     * bug ignoring some type variables
+     * <p>
+     * Assumes, that {@link #genericNamesTranslation} is filled correctly
+     *
+     * @param type
+     *        type to represent
+     *
+     * @param exclusionNames
+     *        set of type variables' names, which mustn't be deducted
+     *
+     * @return string, representing specified type variable in canonical form
+     *
+     * @see #toStringGenericTypedClass(java.lang.reflect.Type, java.util.Set)
+     * @see #formatWildcard(java.lang.reflect.WildcardType, java.util.Set)
+     */
     private String getName(TypeVariable<?> type, Set<String> exclusionNames) {
         if (exclusionNames != null && exclusionNames.contains(type.getName())) {
             return type.getName();
@@ -309,9 +476,6 @@ public class ImplementHelper {
             throw new IllegalStateException();
         }
         Map<String, Type> map = genericNamesTranslation.get(classOfDeclaration.getCanonicalName());
-        if (map == null) {
-            return "Object";
-        }
         Type realType = map.get(type.getName());
         if (realType instanceof TypeVariable<?>) {
             return ((TypeVariable) realType).getName();
@@ -320,6 +484,21 @@ public class ImplementHelper {
         }
     }
 
+    /**
+     * Generates string representation of generic type using deduction
+     * bug ignoring some type variables
+     *
+     * @param type
+     *        type to represent
+     *
+     * @param exclusionNames
+     *        set of type variables' names, which mustn't be deducted
+     *
+     * @return string, representing specified generic type in canonical form
+     *
+     * @see #getName(java.lang.reflect.TypeVariable, java.util.Set)
+     * @see #formatWildcard(java.lang.reflect.WildcardType, java.util.Set)
+     */
     private String toStringGenericTypedClass(Type type, Set<String> exclusionNames) {
         if (type instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) type;
@@ -349,6 +528,21 @@ public class ImplementHelper {
         }
     }
 
+    /**
+     * Generates string representation of wildcard type using deduction
+     * bug ignoring some type variables
+     *
+     * @param type
+     *        wildcard to represent
+     *
+     * @param exclusionNames
+     *        set of type variable names, which mustn't be deducted
+     *
+     * @return string, representing specified wildcard type in canonical form
+     *
+     * @see #getName(java.lang.reflect.TypeVariable, java.util.Set)
+     * @see #toStringGenericTypedClass(java.lang.reflect.Type, java.util.Set)
+     */
     private String formatWildcard(WildcardType type, Set<String> exclusionNames) {
         if (type.getLowerBounds().length != 0) {
             if (type.getUpperBounds().length != 1 || !type.getUpperBounds()[0].equals(Object.class)) {
@@ -384,7 +578,7 @@ public class ImplementHelper {
      * Writes implementation's package name to {@link #out}
      *
      * @throws IOException
-     *         If couldn't write to {@link #out}
+     *         if couldn't write to <code>out</code>
      */
     private void writePackage() throws IOException {
         if (clazz.getPackage() != null) {
@@ -394,9 +588,16 @@ public class ImplementHelper {
 
     /**
      * Writes implementation's class declaration to {@link #out}
+     * <p>
+     * Copies all parents modifiers excluding <code>abstract</code>. Also correctly
+     * works with generic classes
      *
      * @throws IOException
-     *         If couldn't write to {@link #out}
+     *         if couldn't write to <code>out</code>
+     *
+     * @see Class#getModifiers()
+     * @see #generateGenericParamsSuffix(java.lang.reflect.TypeVariable[])
+     * @see #generateGenericParamsPrefix(java.lang.reflect.TypeVariable[])
      */
     private void writeClassDeclaration() throws IOException {
         String modifiers;
@@ -417,12 +618,19 @@ public class ImplementHelper {
 
     /**
      * Writes implementation's class constructors to {@link #out}
+     * <p>
+     * Supers all non-private constructors, declared in parent. Copies all parent
+     * constructor exceptions and passes default values to it.
      *
      * @throws IOException
-     *         If couldn't write to {@link #out}
+     *         if couldn't write to <code>out</code>
      *
      * @throws ImplerException
-     *         If there is no non-private constructor in {@link #clazz}
+     *         if there is no non-private constructor in {@link #clazz} and it's
+     *         not an interface
+     *
+     * @see #getConstructorsToSuper()
+     * @see #getDefaultValue(java.lang.reflect.Type)
      */
     private void writeConstructors() throws ImplerException, IOException {
         for (Constructor<?> constructor : constructorsToSuper) {
@@ -473,9 +681,16 @@ public class ImplementHelper {
 
     /**
      * Writes implementation class' declaration to {@link #out}
+     * <p>
+     * Overrides all abstract methods from ancestors. Copies access modifier
+     * from ancestor method and returns default value for return type. Ignores
+     * all exceptions, declared in ancestor method
      *
      * @throws IOException
-     *         If couldn't write to {@link #out}
+     *         if couldn't write to <code>out</code>
+     *
+     * @see #getMethodsToOverride(java.util.Map, java.util.Map, Class)
+     * @see #getDefaultValue(java.lang.reflect.Type)
      */
     private void writeMethodImplementations() throws IOException {
         for (Method method : methodsToOverride) {
@@ -520,16 +735,21 @@ public class ImplementHelper {
     }
 
     /**
-     * Produces code implementing current class or interface {@link #clazz}.
-     *
-     * Generated source code implementing {@link #clazz} will be placed in
-     * the file specified by {@link java.io.PrintWriter} argument.
+     * Produces code implementing current class or interface {@link #clazz} and
+     * places it to {@link #out}.
+     * <p>
+     * Produced code will be correct Java code and will be successfully compiled
+     * by Java compiler. New class' package will be equal to initial class' package
+     * It will super all available constructors from parent, or, if there is no any
+     * constructor (all parents are interfaces), it will leave default constructor.
+     * All abstract methods will be overridden. No fields or new methods will be
+     * generated.
      *
      * @throws IOException
-     *         If couldn't write to {@link #out}
+     *         if couldn't write to <code>out</code>
      *
      * @throws ImplerException
-     *         If there is no correct implementation for {@link #clazz}
+     *         if there is no correct implementation for <code>clazz</code>
      */
     public void implement() throws ImplerException, IOException {
         writePackage();
