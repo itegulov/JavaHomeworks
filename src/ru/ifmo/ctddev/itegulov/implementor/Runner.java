@@ -24,7 +24,7 @@ public class Runner {
                 throw new IllegalArgumentException("Invalid usage");
             }
             try {
-                new Implementor().implementJar(Class.forName(args[1]), new File(args[1]));
+                new Implementor().implementJar(Class.forName(args[1]), new File(args[2]));
             } catch (ClassNotFoundException e) {
                 System.err.println("Can't find class " + args[0]);
             } catch (ImplerException e) {
