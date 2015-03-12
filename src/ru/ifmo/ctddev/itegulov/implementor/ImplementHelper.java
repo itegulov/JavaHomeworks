@@ -7,6 +7,13 @@ import java.lang.reflect.*;
 import java.util.*;
 
 /**
+ * Processes one class and generates an implementation for it
+ * through {@link #implement}
+ * <p>
+ * Expected usage is the following:
+ * <blockquote><pre>
+ *     new ImplementHelper(MyClass.class, "MyClassImpl", new FileWriter(new File("MyClassImpl.java")))
+ * </pre></blockquote><p>
  * @author Daniyar Itegulov
  * @version 1.3
  * @see ru.ifmo.ctddev.itegulov.implementor.Implementor
@@ -44,9 +51,9 @@ class ImplementHelper {
      * <p>
      * Keys in this <code>Map</code> stand for declaring class name. Whereas values stand for <code>Map</code>,
      * which contains keys as type variable names and values as their real types.
-     *
-     * For example if you have <code>class MyClass implements Comparable<String></code>, then this
-     * <code>Map</code> will contain {"Comparable", {"T", "String"}}.
+     * <p>
+     * For example if you have <code>class MyClass implements Comparable&lt;String&gt;</code>, then this
+     * <code>Map</code> will contain <code>{"Comparable", {"T", "String"}}</code>.
      */
     private final Map<String, Map<String, Type>> genericNamesTranslation;
 
@@ -113,7 +120,7 @@ class ImplementHelper {
      * @param clazz
      *        class, which will be deducted (all it ancestors also will be deducted)
      *
-     * @see #parseClassParent(java.lang.reflect.Type, java.util.Map) 
+     * @see #parseClassParent(java.lang.reflect.Type, java.util.Map)
      */
     private static void initGenericNamesTranslation(Map<String, Type> passedParams,
                                                     Map<String, Map<String, Type>> genericNamesTranslation,
@@ -358,12 +365,12 @@ class ImplementHelper {
      * bounds.
      * <p>
      * It will be empty string if no type variables present, otherwise it will be given
-     * in this form: "<" + all type variables written and separated by comma maybe with
-     * bounds + ">".
-     *
-     * For example if you have <code>class MyClass<E extends Exception, T extends Stream>
-     * implements Comparable<String></code>, then this method will give you "<E extends
-     * Exception, T extends Stream>"
+     * in this form: "&lt;" + all type variables written and separated by comma maybe with
+     * bounds + "&gt;".
+     * <p>
+     * For example if you have <code>class MyClass&lt;E extends Exception, T extends Stream&gt;
+     * implements Comparable&lt;String&gt;</code>, then this method will give you "&lt;E extends
+     * Exception, T extends Stream&gt;"
      *
      * @param genericArguments
      *        an array of type variables, which stands for initial class' type parameters
@@ -409,11 +416,11 @@ class ImplementHelper {
      * without bounds.
      * <p>
      * It will be empty string if no type variables present, otherwise it will be given
-     * in this form: "<" + all type variables written and separated by comma without
-     * bounds + ">".
+     * in this form: "&lt;" + all type variables written and separated by comma without
+     * bounds + "&gt;".
      *
-     * For example if you have <code>class MyClass<E extends Exception, T extends Stream>
-     * implements Comparable<String></code>, then this method will give you "<E, T>"
+     * For example if you have <code>class MyClass&lt;E extends Exception, T extends Stream&gt;
+     * implements Comparable&lt;String&gt;</code>, then this method will give you "&lt;E, T&gt;"
      *
      * @param genericArguments
      *        an array of type variables, which stands for initial class' type parameters

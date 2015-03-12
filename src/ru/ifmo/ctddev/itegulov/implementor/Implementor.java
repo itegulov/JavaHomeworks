@@ -14,7 +14,6 @@ import java.io.IOException;
  * @see ru.ifmo.ctddev.itegulov.implementor.ImplementHelper
  */
 public class Implementor implements Impler {
-
     @Override
     public void implement(final Class<?> token, final File root) throws ImplerException {
         if (token == null || root == null) {
