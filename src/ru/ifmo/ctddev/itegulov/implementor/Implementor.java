@@ -9,7 +9,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 /**
- * Implementation of interface Impler and JarImpler, with generics supported
+ * Implementation of interface {@link info.kgeorgiy.java.advanced.implementor.Impler}
+ * and {@link info.kgeorgiy.java.advanced.implementor.JarImpler}, with generics supported
  *
  * @author Daniyar Itegulov
  * @see ru.ifmo.ctddev.itegulov.implementor.ImplementHelper
