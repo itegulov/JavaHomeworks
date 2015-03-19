@@ -14,8 +14,6 @@ import java.util.function.Supplier;
  * @author Daniyar Itegulov
  */
 public class IterativeParallelism implements ListIP {
-    private final Object lock = new Object();
-
     /**
      * Default constructor
      */
@@ -149,6 +147,10 @@ public class IterativeParallelism implements ListIP {
         return parallelizeList(count, pseudoMonoid, (a) -> Arrays.asList(function.apply(a)), list);
     }
 
+    public static void main(String[] args) throws InterruptedException {
+        new IterativeParallelism().maximum(2, Arrays.asList(1, 2, 3), Integer::compare);
+    }
+
     private <T, E> E parallelizeList(int count,
                                      PseudoMonoid<E> pseudoMonoid,
                                      Function<? super T, ? extends E> caster,
@@ -157,12 +159,11 @@ public class IterativeParallelism implements ListIP {
             count = list.size();
         }
         int chunkSize = list.size() / count;
-        count = (list.size() + chunkSize - 1) / chunkSize;
         List<Thread> threadList = new ArrayList<>();
         int index = 0;
-        final List<E> resultList = new ArrayList<>();
+        final List<E> resultList = Collections.synchronizedList(new ArrayList<>());
         for (int i = 0; i < count; i++) {
-            resultList.add(null);
+            resultList.add(pseudoMonoid.getNeutral());
         }
         for (int left = 0; left < list.size(); left += chunkSize) {
             int right = Math.min(left + chunkSize, list.size());
