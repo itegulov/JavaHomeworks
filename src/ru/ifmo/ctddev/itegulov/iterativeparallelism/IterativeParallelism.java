@@ -154,9 +154,6 @@ public class IterativeParallelism implements ListIP {
                                      PseudoMonoid<E> pseudoMonoid,
                                      Function<? super T, ? extends E> caster,
                                      List<? extends T> list) throws InterruptedException {
-        if (count > Runtime.getRuntime().availableProcessors()) {
-            count = Runtime.getRuntime().availableProcessors();
-        }
         if (count > list.size()) {
             count = list.size();
         }
