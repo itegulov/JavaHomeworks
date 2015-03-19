@@ -20,6 +20,12 @@ public class IterativeParallelism implements ListIP {
     private final Object lock = new Object();
 
     /**
+     * Default constructor
+     */
+    public IterativeParallelism() {
+    }
+
+    /**
      * Returns the maximum element of {@code List} according to the provided {@link java.util.Comparator}.
      * Uses {@code count} threads to do this parallel.
      * @param count number of threads to use
