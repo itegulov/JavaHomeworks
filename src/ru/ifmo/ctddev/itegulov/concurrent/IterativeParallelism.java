@@ -1,4 +1,4 @@
-package ru.ifmo.ctddev.itegulov.iterativeparallelism;
+package ru.ifmo.ctddev.itegulov.concurrent;
 
 import info.kgeorgiy.java.advanced.concurrent.ListIP;
 

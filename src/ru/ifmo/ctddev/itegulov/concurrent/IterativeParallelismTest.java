@@ -1,4 +1,4 @@
-package ru.ifmo.ctddev.itegulov.iterativeparallelism;
+package ru.ifmo.ctddev.itegulov.concurrent;
 
 import org.junit.Assert;
 import org.junit.Test;
