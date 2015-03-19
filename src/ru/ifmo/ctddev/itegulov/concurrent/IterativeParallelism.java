@@ -2,10 +2,7 @@ package ru.ifmo.ctddev.itegulov.concurrent;
 
 import info.kgeorgiy.java.advanced.concurrent.ListIP;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -58,7 +55,7 @@ public class IterativeParallelism implements ListIP {
             throw new IllegalArgumentException("Can't find minimum of empty list");
         }
         PseudoMonoid<E> pseudoMonoid = new PseudoMonoid<>((a, b) -> (comparator.compare(a, b) <= 0) ? a : b, () -> list.get(0));
-        return parallelizeList(count, pseudoMonoid, (a) -> a, list);
+        return parallelizeList(count, pseudoMonoid, Function.identity(), list);
     }
 
     /**
@@ -127,13 +124,8 @@ public class IterativeParallelism implements ListIP {
             a.addAll(b);
             return a;
         }, ArrayList::new);
-        return parallelizeList(count, pseudoMonoid, (a) -> {
-            if (predicate.test(a)) {
-                return Arrays.asList(a);
-            } else {
-                return new ArrayList<>();
-            }
-        }, list);
+        return parallelizeList(count, pseudoMonoid,
+                a -> predicate.test(a) ? Collections.singletonList(a) : Collections.emptyList(), list);
     }
 
     /**
@@ -165,9 +157,13 @@ public class IterativeParallelism implements ListIP {
             count = list.size();
         }
         int chunkSize = list.size() / count;
+        count = (list.size() + chunkSize - 1) / chunkSize;
         List<Thread> threadList = new ArrayList<>();
         int index = 0;
-        final Accumulator<E> result = new Accumulator<>(pseudoMonoid.getNeutral(), 0);
+        final List<E> resultList = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            resultList.add(null);
+        }
         for (int left = 0; left < list.size(); left += chunkSize) {
             int right = Math.min(left + chunkSize, list.size());
             List<? extends T> subList = list.subList(left, right);
@@ -178,39 +174,19 @@ public class IterativeParallelism implements ListIP {
                     accumulator = pseudoMonoid.operation(accumulator, caster.apply(element));
                 }
 
-                synchronized (lock) {
-                    while (result.threadIndex != currentIndex) {
-                        try {
-                            lock.wait();
-                        } catch (InterruptedException e) {
-                            return;
-                        }
-                    }
-                    result.value = pseudoMonoid.operation(result.value, accumulator);
-                    result.threadIndex++;
-                    lock.notifyAll();
-                }
+                resultList.set(currentIndex, accumulator);
             });
             thread.start();
             threadList.add(thread);
             index++;
         }
-
-        for (Thread thread : threadList) {
-            thread.join();
+        E result = pseudoMonoid.getNeutral();
+        for (int i = 0; i < count; i++) {
+            threadList.get(i).join();
+            result = pseudoMonoid.operation(result, resultList.get(i));
         }
 
-        return result.value;
-    }
-
-    private static class Accumulator<T> {
-        T value;
-        int threadIndex;
-
-        private Accumulator(final T value, final int threadIndex) {
-            this.value = value;
-            this.threadIndex = threadIndex;
-        }
+        return result;
     }
 
     private static class PseudoMonoid<T> {
