@@ -183,7 +183,7 @@ public class IterativeParallelism implements ListIP {
                         try {
                             lock.wait();
                         } catch (InterruptedException e) {
-                            e.printStackTrace();
+                            return;
                         }
                     }
                     result.value = pseudoMonoid.operation(result.value, accumulator);
