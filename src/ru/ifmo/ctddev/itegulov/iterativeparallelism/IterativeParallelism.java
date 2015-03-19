@@ -12,7 +12,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * Class, containing some useful parallel functions
+ * Implementation of interface {@link info.kgeorgiy.java.advanced.concurrent.ListIP}
  *
  * @author Daniyar Itegulov
  */
@@ -91,7 +91,8 @@ public class IterativeParallelism implements ListIP {
 
     /**
      * Returns concatenated string representation of all elements from {@code List}.
-     * Uses {@code count} threads to do this parallel.
+     * Returns empty string if {@code List} is empty. Uses {@code count} threads to
+     * do this parallel.
      * @param count number of threads to use
      * @param list list to process
      * @return string, containing concatenated string representations of all elements
