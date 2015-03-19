@@ -18,6 +18,7 @@ public class IterativeParallelismTest {
         testMaximum(6, Integer::compare, 2, 4, 1, 7, 18, 25, 2, 7);
         testMaximum(5, Integer::compare, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
         testMaximum(1, Integer::compare, randomArray(10000));
+        testMaximum(6, Integer::compare, randomArray(5));
     }
 
     @Test

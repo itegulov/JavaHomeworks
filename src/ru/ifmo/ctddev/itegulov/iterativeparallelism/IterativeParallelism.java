@@ -17,48 +17,110 @@ import java.util.function.Supplier;
  * @author Daniyar Itegulov
  */
 public class IterativeParallelism implements ListIP {
-    /**
-     * Object, used for synchronising
-     */
     private final Object lock = new Object();
 
+    /**
+     * Returns the maximum element of {@code List} according to the provided {@link java.util.Comparator}.
+     * Uses {@code count} threads to do this parallel.
+     * @param count number of threads to use
+     * @param list list to process
+     * @param comparator comparator to use
+     * @return maximum element of {@code List}
+     * @throws InterruptedException if some of created threads was interrupted
+     */
     @Override
-    public <T> T maximum(int threads, List<? extends T> list, Comparator<? super T> comparator) throws InterruptedException {
-        Monoid<T> monoid = new Monoid<>((a, b) -> (comparator.compare(a, b) >= 0) ? a : b, () -> list.get(0));
-        return parallelizeList(threads, monoid, (a) -> a, list);
+    public <E> E maximum(int count, List<? extends E> list, Comparator<? super E> comparator) throws InterruptedException {
+        if (list.size() < 1) {
+            throw new IllegalArgumentException("Can't find maximum of empty list");
+        }
+        PseudoMonoid<E> pseudoMonoid = new PseudoMonoid<>((a, b) -> (comparator.compare(a, b) >= 0) ? a : b, () -> list.get(0));
+        return parallelizeList(count, pseudoMonoid, (a) -> a, list);
     }
 
+    /**
+     * Returns the minimum element of {@code List} according to the provided {@link java.util.Comparator}.
+     * Uses {@code count} threads to do this parallel.
+     * @param count number of threads to use
+     * @param list list to process
+     * @param comparator comparator to use
+     * @return minimum element of {@code List}
+     * @throws InterruptedException if some of created threads was interrupted
+     */
     @Override
-    public <E> E minimum(int threads, List<? extends E> list, Comparator<? super E> comparator) throws InterruptedException {
-        Monoid<E> monoid = new Monoid<>((a, b) -> (comparator.compare(a, b) <= 0) ? a : b, () -> list.get(0));
-        return parallelizeList(threads, monoid, (a) -> a, list);
+    public <E> E minimum(int count, List<? extends E> list, Comparator<? super E> comparator) throws InterruptedException {
+        if (list.size() < 1) {
+            throw new IllegalArgumentException("Can't find minimum of empty list");
+        }
+        PseudoMonoid<E> pseudoMonoid = new PseudoMonoid<>((a, b) -> (comparator.compare(a, b) <= 0) ? a : b, () -> list.get(0));
+        return parallelizeList(count, pseudoMonoid, (a) -> a, list);
     }
 
+    /**
+     * Returns whether any elements of {@code List} match the provided {@link java.util.function.Predicate}.
+     * Returns {@code false} if {@code List} is empty. Uses {@code count} threads to do
+     * this parallel.
+     * @param count number of threads to use
+     * @param list list to process
+     * @param predicate predicate to apply to elements
+     * @return {@code true} if any elements of {@code List} match the provided
+     * predicate, otherwise {@code false}
+     * @throws InterruptedException if some of created threads was interrupted
+     */
     @Override
-    public <E> boolean any(int threads, List<? extends E> list, Predicate<? super E> predicate) throws InterruptedException {
-        Monoid<Boolean> monoid = new Monoid<>(Boolean::logicalOr, () -> Boolean.FALSE);
-        return parallelizeList(threads, monoid, predicate::test, list);
+    public <E> boolean any(int count, List<? extends E> list, Predicate<? super E> predicate) throws InterruptedException {
+        PseudoMonoid<Boolean> pseudoMonoid = new PseudoMonoid<>(Boolean::logicalOr, () -> Boolean.FALSE);
+        return parallelizeList(count, pseudoMonoid, predicate::test, list);
     }
 
+    /**
+     * Returns whether all elements of {@code List} match the provided {@link java.util.function.Predicate}.
+     * Returns {@code true} if {@code List} is empty. Uses {@code count} threads
+     * to do this parallel.
+     * @param count number of threads to use
+     * @param list list to process
+     * @param predicate predicate to apply to elements
+     * @return {@code true} if either all elements of {@code List} match the
+     * provided predicate or {@code List} is empty, otherwise {@code false}
+     * @throws InterruptedException if some of created threads was interrupted
+     */
     @Override
-    public <E> boolean all(int threads, List<? extends E> list, Predicate<? super E> predicate) throws InterruptedException {
-        Monoid<Boolean> monoid = new Monoid<>(Boolean::logicalAnd, () -> Boolean.TRUE);
-        return parallelizeList(threads, monoid, predicate::test, list);
+    public <E> boolean all(int count, List<? extends E> list, Predicate<? super E> predicate) throws InterruptedException {
+        PseudoMonoid<Boolean> pseudoMonoid = new PseudoMonoid<>(Boolean::logicalAnd, () -> Boolean.TRUE);
+        return parallelizeList(count, pseudoMonoid, predicate::test, list);
     }
 
+    /**
+     * Returns concatenated string representation of all elements from {@code List}.
+     * Uses {@code count} threads to do this parallel.
+     * @param count number of threads to use
+     * @param list list to process
+     * @return string, containing concatenated string representations of all elements
+     * from {@code List}
+     * @throws InterruptedException if some of created threads was interrupted
+     */
     @Override
-    public String concat(int threads, List<?> list) throws InterruptedException {
-        Monoid<String> monoid = new Monoid<>(String::concat, () -> "");
-        return parallelizeList(threads, monoid, (a) -> a.toString(), list);
+    public String concat(int count, List<?> list) throws InterruptedException {
+        PseudoMonoid<StringBuilder> pseudoMonoid = new PseudoMonoid<>(StringBuilder::append, StringBuilder::new);
+        return this.parallelizeList(count, pseudoMonoid, o -> new StringBuilder(o.toString()), list).toString();
     }
 
+    /**
+     * Returns a {@code List} consisting of the elements of given {@code List} that match
+     * the given {@link java.util.function.Predicate}. Uses {@code count} threads to do
+     * this parallel.
+     * @param count number of threads to use
+     * @param list list to process
+     * @param predicate predicate to apply to elements
+     * @return the new {@code List}
+     * @throws InterruptedException if some of created threads was interrupted
+     */
     @Override
-    public <T> List<T> filter(int threads, List<? extends T> list, Predicate<? super T> predicate) throws InterruptedException {
-        Monoid<List<T>> monoid = new Monoid<>((a, b) -> {
+    public <T> List<T> filter(int count, List<? extends T> list, Predicate<? super T> predicate) throws InterruptedException {
+        PseudoMonoid<List<T>> pseudoMonoid = new PseudoMonoid<>((a, b) -> {
             a.addAll(b);
             return a;
         }, ArrayList::new);
-        return parallelizeList(threads, monoid, (a) -> {
+        return parallelizeList(count, pseudoMonoid, (a) -> {
             if (predicate.test(a)) {
                 return Arrays.asList(a);
             } else {
@@ -67,61 +129,61 @@ public class IterativeParallelism implements ListIP {
         }, list);
     }
 
+    /**
+     * Returns a {@code List} consisting of the results of applying the given
+     * {@link java.util.function.Function} to the elements of this {@code List}.
+     * Uses {@code count} threads to do this parallel.
+     * @param count number of threads to use
+     * @param list list to process
+     * @param function function to apply to elements
+     * @return the new {@code List}
+     * @throws InterruptedException if some of created threads was interrupted
+     */
     @Override
-    public <T, U> List<U> map(int threads,
+    public <T, U> List<U> map(int count,
                               List<? extends T> list,
                               Function<? super T, ? extends U> function) throws InterruptedException {
-        Monoid<List<U>> monoid = new Monoid<>((a, b) -> {
+        PseudoMonoid<List<U>> pseudoMonoid = new PseudoMonoid<>((a, b) -> {
             a.addAll(b);
             return a;
         }, ArrayList::new);
-        return parallelizeList(threads, monoid, (a) -> Arrays.asList(function.apply(a)), list);
+        return parallelizeList(count, pseudoMonoid, (a) -> Arrays.asList(function.apply(a)), list);
     }
 
-    /**
-     * Uses <code>count</code> threads to cast all <code>list</code> elements using <code>caster</code>
-     * and apply monoid's operation over them
-     *
-     * @param count number of thread to use
-     * @param monoid monoid, containing neutral element and operation to use
-     * @param caster function, used to cast <code>list</code> element to <code>monoid</code> element
-     * @param list list, containing data to process
-     * @param <T> type of elements in <code>list</code>
-     * @param <E> resulting type
-     * @return result of applying <code>monoid</code> operation over all elements in <code>list</code>
-     * @throws InterruptedException if one of generated threads has interrupted
-     * @see ru.ifmo.ctddev.itegulov.iterativeparallelism.IterativeParallelism.Monoid
-     * @see java.util.function.Function
-     */
     private <T, E> E parallelizeList(int count,
-                                     Monoid<E> monoid,
-                                     Function<T, E> caster,
-                                     List<T> list) throws InterruptedException {
+                                     PseudoMonoid<E> pseudoMonoid,
+                                     Function<? super T, ? extends E> caster,
+                                     List<? extends T> list) throws InterruptedException {
+        if (count > Runtime.getRuntime().availableProcessors()) {
+            count = Runtime.getRuntime().availableProcessors();
+        }
+        if (count > list.size()) {
+            count = list.size();
+        }
         int chunkSize = list.size() / count;
         List<Thread> threadList = new ArrayList<>();
         int index = 0;
-        final Accumulator<E> result = new Accumulator<>(monoid.getNeutral(), 0);
+        final Accumulator<E> result = new Accumulator<>(pseudoMonoid.getNeutral(), 0);
         for (int left = 0; left < list.size(); left += chunkSize) {
             int right = Math.min(left + chunkSize, list.size());
-            List<T> subList = list.subList(left, right);
+            List<? extends T> subList = list.subList(left, right);
             final int currentIndex = index;
             Thread thread = new Thread(() -> {
-                E accumulator = monoid.getNeutral();
+                E accumulator = pseudoMonoid.getNeutral();
                 for (T element : subList) {
-                    accumulator = monoid.operation(accumulator, caster.apply(element));
+                    accumulator = pseudoMonoid.operation(accumulator, caster.apply(element));
                 }
 
                 synchronized (lock) {
-                    while (result.getThreadIndex() != currentIndex) {
+                    while (result.threadIndex != currentIndex) {
                         try {
                             lock.wait();
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                     }
-
-                    result.setValue(monoid.operation(result.getValue(), accumulator));
-                    result.setThreadIndex(result.getThreadIndex() + 1);
+                    result.value = pseudoMonoid.operation(result.value, accumulator);
+                    result.threadIndex++;
                     lock.notifyAll();
                 }
             });
@@ -134,116 +196,32 @@ public class IterativeParallelism implements ListIP {
             thread.join();
         }
 
-        return result.getValue();
+        return result.value;
     }
 
-    /**
-     * Represents current value, received from ended threads and next thread to write it's result
-     *
-     * @param <T> value type, returned by threads
-     */
     private static class Accumulator<T> {
-        /**
-         * Current value, generated by ended threads
-         */
-        private T value;
-        /**
-         * Next thread to write it's result
-         */
-        private int threadIndex;
+        T value;
+        int threadIndex;
 
-        /**
-         * Class constructor, specifying initial value, when thread didn't return any result
-         * (for example monoid's neutral element) and next thread's index
-         *
-         * @param value initial value
-         * @param threadIndex next thread's index
-         */
         private Accumulator(final T value, final int threadIndex) {
             this.value = value;
             this.threadIndex = threadIndex;
         }
-
-        /**
-         * @return current value
-         * @see #value
-         */
-        private T getValue() {
-            return value;
-        }
-
-        /**
-         * Sets new value
-         * @param value new value to set
-         * @see #value
-         */
-        private void setValue(final T value) {
-            this.value = value;
-        }
-
-        /**
-         * @return current thread index
-         * @see #threadIndex
-         */
-        private int getThreadIndex() {
-            return threadIndex;
-        }
-
-        /**
-         * Sets new thread index
-         * @param threadIndex new thread index to set
-         * @see #threadIndex
-         */
-        private void setThreadIndex(final int threadIndex) {
-            this.threadIndex = threadIndex;
-        }
     }
 
-    /**
-     * Represents algebraic structure monoid with a single associative operation binary operation
-     * and a neutral element.
-     * <p>
-     * <a href="https://en.wikipedia.org/wiki/Monoid">Monoid on wikipedia</a>
-     *
-     * @param <T> type of elements in monoid
-     */
-    private static class Monoid<T> {
-        /**
-         * Associative operation, used by monoid. It can overwrite it's arguments
-         */
+    private static class PseudoMonoid<T> {
         private final BinaryOperator<T> operation;
-        /**
-         * Supplier, which generate neutral element. It has to give out different objects
-         * (<code>neutralElementGenerator.get() != neutralElementGenerator.get()</code>.
-         */
         private final Supplier<T> neutralElementGenerator;
 
-        /**
-         * Class constructor, specifying what operation is to be used in monoid and how neutral
-         * element is generated
-         *
-         * @param operation binary operation, which specifies monoid's operation
-         * @param neutralElementGenerator supplier, which specifies monoid's neutral element generation
-         */
-        private Monoid(final BinaryOperator<T> operation, final Supplier<T> neutralElementGenerator) {
+        private PseudoMonoid(final BinaryOperator<T> operation, final Supplier<T> neutralElementGenerator) {
             this.operation = operation;
             this.neutralElementGenerator = neutralElementGenerator;
         }
 
-        /**
-         * @param a first element of monoid
-         * @param b second element of monoid
-         * @return result of operation on <code>a</code> and <code>b</code>
-         * @see #operation
-         */
         public T operation(T a, T b) {
             return operation.apply(a, b);
         }
 
-        /**
-         * @return neutral element of monoid
-         * @see #neutralElementGenerator
-         */
         public T getNeutral() {
             return neutralElementGenerator.get();
         }
