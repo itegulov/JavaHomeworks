@@ -20,6 +20,7 @@ public class IterativeParallelism implements ListIP {
     /**
      * Class constructor, specifying which {@link info.kgeorgiy.java.advanced.mapper.ParallelMapper}
      * to use.
+     *
      * @param parallelMapper parallel mapper, which will be used for parallel computations
      */
     public IterativeParallelism(ParallelMapper parallelMapper) {
@@ -29,6 +30,7 @@ public class IterativeParallelism implements ListIP {
     /**
      * Returns the maximum element of {@code List} according to the provided {@link java.util.Comparator}.
      * Uses {@code count} threads to do this parallel.
+     *
      * @param count number of threads to use
      * @param list list to process
      * @param comparator comparator to use
@@ -47,6 +49,7 @@ public class IterativeParallelism implements ListIP {
     /**
      * Returns the minimum element of {@code List} according to the provided {@link java.util.Comparator}.
      * Uses {@code count} threads to do this parallel.
+     *
      * @param count number of threads to use
      * @param list list to process
      * @param comparator comparator to use
@@ -66,6 +69,7 @@ public class IterativeParallelism implements ListIP {
      * Returns whether any elements of {@code List} match the provided {@link java.util.function.Predicate}.
      * Returns {@code false} if {@code List} is empty. Uses {@code count} threads to do
      * this parallel.
+     *
      * @param count number of threads to use
      * @param list list to process
      * @param predicate predicate to apply to elements
@@ -83,6 +87,7 @@ public class IterativeParallelism implements ListIP {
      * Returns whether all elements of {@code List} match the provided {@link java.util.function.Predicate}.
      * Returns {@code true} if {@code List} is empty. Uses {@code count} threads
      * to do this parallel.
+     *
      * @param count number of threads to use
      * @param list list to process
      * @param predicate predicate to apply to elements
@@ -100,6 +105,7 @@ public class IterativeParallelism implements ListIP {
      * Returns concatenated string representation of all elements from {@code List}.
      * Returns empty string if {@code List} is empty. Uses {@code count} threads to
      * do this parallel.
+     *
      * @param count number of threads to use
      * @param list list to process
      * @return string, containing concatenated string representations of all elements
@@ -116,6 +122,7 @@ public class IterativeParallelism implements ListIP {
      * Returns a {@code List} consisting of the elements of given {@code List} that match
      * the given {@link java.util.function.Predicate}. Uses {@code count} threads to do
      * this parallel.
+     *
      * @param count number of threads to use
      * @param list list to process
      * @param predicate predicate to apply to elements
@@ -136,6 +143,7 @@ public class IterativeParallelism implements ListIP {
      * Returns a {@code List} consisting of the results of applying the given
      * {@link java.util.function.Function} to the elements of this {@code List}.
      * Uses {@code count} threads to do this parallel.
+     *
      * @param count number of threads to use
      * @param list list to process
      * @param function function to apply to elements

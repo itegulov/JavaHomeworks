@@ -47,24 +47,28 @@ public class FutureTask<R, T> {
      * occurred in executed task higher.
      */
     public void execute() {
-        synchronized (this) {
-            if (status != STATUS_PENDING) {
-                return;
-            } else {
-                status = STATUS_RUNNING;
-                runner = Thread.currentThread();
-            }
-        }
         try {
+            synchronized (this) {
+                if (status != STATUS_PENDING) {
+                    return;
+                } else {
+                    status = STATUS_RUNNING;
+                    runner = Thread.currentThread();
+                }
+            }
             R result = task.apply(argument);
             synchronized (this) {
                 if (status == STATUS_RUNNING) {
                     this.result = result;
                     status = STATUS_READY;
+                    notifyAll();
                 }
             }
         } catch (RuntimeException e) {
             status = STATUS_ABORTED;
+            synchronized (this) {
+                notifyAll();
+            }
             throw e;
         } finally {
             runner = null;
@@ -80,17 +84,15 @@ public class FutureTask<R, T> {
      * working thread.
      * <p>
      * After this method returns, subsequent calls to {@link #isReady} will
-     * always return {@code true}.  Subsequent calls to {@link #isAborted}
-     * will always return {@code true} if this method returned {@code true}.
+     * always return {@code false}.  Subsequent calls to {@link #isAborted}
+     * will always return {@code true}.
      */
-    public void cancel() {
-        synchronized (this) {
-            if (status != STATUS_READY) {
-                status = STATUS_ABORTED;
-            }
-            if (runner != null) {
-                runner.interrupt();
-            }
+    public synchronized void cancel() {
+        if (status != STATUS_READY) {
+            status = STATUS_ABORTED;
+        }
+        if (runner != null) {
+            runner.interrupt();
         }
     }
 
@@ -101,13 +103,11 @@ public class FutureTask<R, T> {
      * @return result of executing task if it's available, {@code null}
      * otherwise
      */
-    public R getResult() {
-        synchronized (this) {
-            if (status == STATUS_READY) {
-                return result;
-            }
-            return null;
+    public synchronized R getResult() {
+        if (status == STATUS_READY) {
+            return result;
         }
+        return null;
     }
 
     /**
@@ -132,11 +132,9 @@ public class FutureTask<R, T> {
      *
      * @throws InterruptedException if this thread was interrupted
      */
-    public void waitForDone() throws InterruptedException {
-        synchronized (this) {
-            while (!isReady() && !isAborted()) {
-                wait();
-            }
+    public synchronized void waitForDone() throws InterruptedException {
+        while (!isReady() && !isAborted()) {
+            wait();
         }
     }
 }
