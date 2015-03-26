@@ -29,7 +29,7 @@ public class FutureTask<R, T> {
 
     /**
      * Class constructor, which specify what task to execute and what
-     * argument to pass to it. If you will need to interrupt working thread
+     * argument to pass to it. If you'll need to interrupt working thread
      * during task's executing, you should provide task, which will check
      * for thread's interrupted state and stop if it is interrupted.
      *
@@ -43,7 +43,8 @@ public class FutureTask<R, T> {
 
     /**
      * Waits if necessary for the computation to complete, and then
-     * saves it's result if not canceled.
+     * saves it's result if not canceled. Throws all exceptions, which
+     * occurred in executed task higher.
      */
     public void execute() {
         synchronized (this) {
@@ -54,27 +55,42 @@ public class FutureTask<R, T> {
                 runner = Thread.currentThread();
             }
         }
-        R result = null;
         try {
-            result = task.apply(argument);
-        } finally {
+            R result = task.apply(argument);
             synchronized (this) {
                 if (status == STATUS_RUNNING) {
                     this.result = result;
                     status = STATUS_READY;
                 }
-                runner = null;
             }
+        } catch (RuntimeException e) {
+            status = STATUS_CANCELED;
+            throw e;
+        } finally {
+            runner = null;
         }
+    }
+
+    public static void main(String[] args) {
+        FutureTask<Integer, Integer> futureTask = new FutureTask<>(o -> {
+            throw new UnsupportedOperationException();
+        }, 1);
+        try {
+            futureTask.execute();
+        } catch (Exception e) {
+            System.out.println("Caught");
+            return;
+        }
+        System.out.println(futureTask.getResult());
     }
 
     /**
      * Attempts to cancel execution of this task. This attempt will
      * do nothing, if the task has already completed or has already
      * been cancelled. If successful, and this task has not started
-     * when {@code cancel} is called, this task should never run.
-     * If the task has already started, then it will interrupt working
-     * thread.
+     * when {@code cancel} is called, this task should never be ran.
+     * If the task has already started, then it will try to interrupt
+     * working thread.
      * <p>
      * After this method returns, subsequent calls to {@link #isReady} will
      * always return {@code true}.  Subsequent calls to {@link #isCancelled}

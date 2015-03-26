@@ -129,7 +129,7 @@ public class IterativeParallelism implements ListIP {
             return a;
         }, ArrayList::new);
         return parallelizeList(count, pseudoMonoid,
-                a -> predicate.test(a) ? Collections.singletonList(a) : Collections.emptyList(), list);
+                a -> predicate.test(a) ? Collections.singletonList(a) : new ArrayList<>(), list);
     }
 
     /**
@@ -150,7 +150,7 @@ public class IterativeParallelism implements ListIP {
             a.addAll(b);
             return a;
         }, ArrayList::new);
-        return parallelizeList(count, pseudoMonoid, (a) -> Arrays.asList(function.apply(a)), list);
+        return parallelizeList(count, pseudoMonoid, (a) -> Collections.singletonList(function.apply(a)), list);
     }
 
     private <T, E> E parallelizeList(int count,

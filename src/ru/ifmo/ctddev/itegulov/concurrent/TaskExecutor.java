@@ -31,7 +31,7 @@ public class TaskExecutor {
     public TaskExecutor(int threads) {
         this.threads= new Thread[threads];
         for (int i = 0; i < threads; i++) {
-            this.threads[i] = new WorkerThread();
+            this.threads[i] = new Thread(new WorkerRunnable());
             this.threads[i].start();
         }
     }
@@ -79,11 +79,10 @@ public class TaskExecutor {
         }
     }
 
-    private class WorkerThread extends Thread {
-        @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
+    private class WorkerRunnable implements Runnable {
         @Override
         public void run() {
-            while (!isInterrupted()) {
+            while (!Thread.currentThread().isInterrupted()) {
                 FutureTask futureTask;
                 synchronized (tasks) {
                     while (tasks.isEmpty()) {
@@ -96,6 +95,7 @@ public class TaskExecutor {
                     futureTask = tasks.poll();
                 }
                 futureTask.execute();
+                //noinspection SynchronizationOnLocalVariableOrMethodParameter
                 synchronized (futureTask) {
                     futureTask.notifyAll();
                 }
