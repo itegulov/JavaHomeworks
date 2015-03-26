@@ -161,20 +161,10 @@ public class IterativeParallelism implements ListIP {
             count = list.size();
         }
         List<List<? extends T>> tasks = new ArrayList<>(count);
-        if (count == 1) {
-            long time = System.nanoTime();
-            pseudoMonoid.operation(pseudoMonoid.getNeutral(), pseudoMonoid.getNeutral());
-            long end = System.nanoTime();
-            if (end - time > 20000000) {
-                Thread.sleep(1500);
-            }
-            tasks.add(list);
-        } else {
-            int chunkSize = list.size() / count;
-            for (int left = 0; left < list.size(); left += chunkSize) {
-                int right = Math.min(left + chunkSize, list.size());
-                tasks.add(list.subList(left, right));
-            }
+        int chunkSize = list.size() / count;
+        for (int left = 0; left < list.size(); left += chunkSize) {
+            int right = Math.min(left + chunkSize, list.size());
+            tasks.add(list.subList(left, right));
         }
 
         List<E> result = parallelMapper.map(t -> {

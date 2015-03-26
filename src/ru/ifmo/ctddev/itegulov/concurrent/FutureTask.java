@@ -19,7 +19,7 @@ public class FutureTask<R, T> {
     private static final int STATUS_PENDING = 0;
     private static final int STATUS_RUNNING = 1;
     private static final int STATUS_READY = 2;
-    private static final int STATUS_CANCELED = 3;
+    private static final int STATUS_ABORTED = 3;
 
     private final Function<T, R> task;
     private final T argument;
@@ -64,42 +64,29 @@ public class FutureTask<R, T> {
                 }
             }
         } catch (RuntimeException e) {
-            status = STATUS_CANCELED;
+            status = STATUS_ABORTED;
             throw e;
         } finally {
             runner = null;
         }
     }
 
-    public static void main(String[] args) {
-        FutureTask<Integer, Integer> futureTask = new FutureTask<>(o -> {
-            throw new UnsupportedOperationException();
-        }, 1);
-        try {
-            futureTask.execute();
-        } catch (Exception e) {
-            System.out.println("Caught");
-            return;
-        }
-        System.out.println(futureTask.getResult());
-    }
-
     /**
      * Attempts to cancel execution of this task. This attempt will
      * do nothing, if the task has already completed or has already
-     * been cancelled. If successful, and this task has not started
+     * been aborted. If successful, and this task has not started
      * when {@code cancel} is called, this task should never be ran.
      * If the task has already started, then it will try to interrupt
      * working thread.
      * <p>
      * After this method returns, subsequent calls to {@link #isReady} will
-     * always return {@code true}.  Subsequent calls to {@link #isCancelled}
+     * always return {@code true}.  Subsequent calls to {@link #isAborted}
      * will always return {@code true} if this method returned {@code true}.
      */
     public void cancel() {
         synchronized (this) {
             if (status != STATUS_READY) {
-                status = STATUS_CANCELED;
+                status = STATUS_ABORTED;
             }
             if (runner != null) {
                 runner.interrupt();
@@ -133,10 +120,11 @@ public class FutureTask<R, T> {
 
     /**
      * @return {@code true} if task has been canceled before it completed
-     * successfully, {@code false} otherwise.
+     * successfully or exception occurred during executing of the task,
+     * {@code false} otherwise.
      */
-    public boolean isCancelled() {
-        return status == STATUS_CANCELED;
+    public boolean isAborted() {
+        return status == STATUS_ABORTED;
     }
 
     /**
@@ -146,7 +134,7 @@ public class FutureTask<R, T> {
      */
     public void waitForDone() throws InterruptedException {
         synchronized (this) {
-            while (!isReady() && !isCancelled()) {
+            while (!isReady() && !isAborted()) {
                 wait();
             }
         }
