@@ -42,6 +42,9 @@ public class TaskExecutor {
      *
      * @param task task, to be executed
      * @param argument argument, which will be passed to function
+     * @param <T> type of <code>argument</code>, which will be passed to
+     * <code>task</code>
+     * @param <R> return type of <code>task</code>
      * @return future task, which will contain result of executing
      * {@code task} with {@code argument} passed.
      */
