@@ -153,13 +153,6 @@ public class IterativeParallelism implements ListIP {
         return parallelizeList(count, pseudoMonoid, (a) -> Arrays.asList(function.apply(a)), list);
     }
 
-    public static void main(String[] args) throws InterruptedException {
-        try (ParallelMapper parallel = new ParallelMapperImpl(8)) {
-            Integer res = new IterativeParallelism(parallel).maximum(2, Arrays.asList(1, 2, 3), Integer::compare);
-            System.out.println(res);
-        }
-    }
-
     private <T, E> E parallelizeList(int count,
                                      PseudoMonoid<E> pseudoMonoid,
                                      Function<? super T, ? extends E> caster,

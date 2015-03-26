@@ -61,14 +61,21 @@ public class TaskExecutor {
      * Shutdowns all threads, used for executing tasks and cancels all
      * future tasks, which were provided by {@link #submit}, but not executed
      * yet.
+     *
+     * @throws InterruptedException if some of created threads was interrupted
      */
-    public void shutdown() {
+    public void shutdown() throws InterruptedException {
         synchronized (tasks) {
             tasks.forEach(FutureTask::cancel);
             tasks.clear();
         }
+
         for (Thread thread : threads) {
             thread.interrupt();
+        }
+
+        for (Thread thread : threads) {
+            thread.join();
         }
     }
 
