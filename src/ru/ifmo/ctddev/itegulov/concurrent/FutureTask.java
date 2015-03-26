@@ -29,7 +29,10 @@ public class FutureTask<R, T> {
 
     /**
      * Class constructor, which specify what task to execute and what
-     * argument to pass to it.
+     * argument to pass to it. If you will need to interrupt working thread
+     * during task's executing, you should provide task, which will check
+     * for thread's interrupted state and stop if it is interrupted.
+     *
      * @param task task to execute
      * @param argument argument to pass
      */
@@ -51,13 +54,17 @@ public class FutureTask<R, T> {
                 runner = Thread.currentThread();
             }
         }
-        R result = task.apply(argument);
-        synchronized (this) {
-            if (status == STATUS_RUNNING) {
-                this.result = result;
-                status = STATUS_READY;
+        R result = null;
+        try {
+            result = task.apply(argument);
+        } finally {
+            synchronized (this) {
+                if (status == STATUS_RUNNING) {
+                    this.result = result;
+                    status = STATUS_READY;
+                }
+                runner = null;
             }
-            runner = null;
         }
     }
 

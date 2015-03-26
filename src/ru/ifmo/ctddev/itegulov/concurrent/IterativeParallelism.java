@@ -160,7 +160,7 @@ public class IterativeParallelism implements ListIP {
         if (count > list.size()) {
             count = list.size();
         }
-        List<List<? extends T>> tasks = new ArrayList<>();
+        List<List<? extends T>> tasks = new ArrayList<>(count);
         if (count == 1) {
             long time = System.nanoTime();
             pseudoMonoid.operation(pseudoMonoid.getNeutral(), pseudoMonoid.getNeutral());
