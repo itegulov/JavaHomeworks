@@ -1,6 +1,7 @@
 package ru.ifmo.ctddev.itegulov.concurrent;
 
 import info.kgeorgiy.java.advanced.concurrent.ListIP;
+import info.kgeorgiy.java.advanced.mapper.ParallelMapper;
 
 import java.util.*;
 import java.util.function.BinaryOperator;
@@ -14,10 +15,15 @@ import java.util.function.Supplier;
  * @author Daniyar Itegulov
  */
 public class IterativeParallelism implements ListIP {
+    private final ParallelMapper parallelMapper;
+
     /**
-     * Default constructor
+     * Class constructor, specifying which {@link info.kgeorgiy.java.advanced.mapper.ParallelMapper}
+     * to use.
+     * @param parallelMapper parallel mapper, which will be used for parallel computations
      */
-    public IterativeParallelism() {
+    public IterativeParallelism(ParallelMapper parallelMapper) {
+        this.parallelMapper = parallelMapper;
     }
 
     /**
@@ -148,7 +154,10 @@ public class IterativeParallelism implements ListIP {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        new IterativeParallelism().maximum(2, Arrays.asList(1, 2, 3), Integer::compare);
+        try (ParallelMapper parallel = new ParallelMapperImpl(8)) {
+            Integer res = new IterativeParallelism(parallel).maximum(2, Arrays.asList(1, 2, 3), Integer::compare);
+            System.out.println(res);
+        }
     }
 
     private <T, E> E parallelizeList(int count,
@@ -158,36 +167,31 @@ public class IterativeParallelism implements ListIP {
         if (count > list.size()) {
             count = list.size();
         }
-        int chunkSize = list.size() / count;
-        List<Thread> threadList = new ArrayList<>();
-        int index = 0;
-        final List<E> resultList = Collections.synchronizedList(new ArrayList<>());
-        for (int i = 0; i < count; i++) {
-            resultList.add(pseudoMonoid.getNeutral());
-        }
-        for (int left = 0; left < list.size(); left += chunkSize) {
-            int right = Math.min(left + chunkSize, list.size());
-            List<? extends T> subList = list.subList(left, right);
-            final int currentIndex = index;
-            Thread thread = new Thread(() -> {
-                E accumulator = pseudoMonoid.getNeutral();
-                for (T element : subList) {
-                    accumulator = pseudoMonoid.operation(accumulator, caster.apply(element));
-                }
-
-                resultList.set(currentIndex, accumulator);
-            });
-            thread.start();
-            threadList.add(thread);
-            index++;
-        }
-        E result = pseudoMonoid.getNeutral();
-        for (int i = 0; i < count; i++) {
-            threadList.get(i).join();
-            result = pseudoMonoid.operation(result, resultList.get(i));
+        List<List<? extends T>> tasks = new ArrayList<>();
+        if (count == 1) {
+            tasks.add(list);
+        } else {
+            int chunkSize = list.size() / count;
+            for (int left = 0; left < list.size(); left += chunkSize) {
+                int right = Math.min(left + chunkSize, list.size());
+                tasks.add(list.subList(left, right));
+            }
         }
 
-        return result;
+        List<E> result = parallelMapper.map(t -> {
+            E accumulator = pseudoMonoid.getNeutral();
+            for (T element : t) {
+                accumulator = pseudoMonoid.operation(accumulator, caster.apply(element));
+            }
+            return accumulator;
+        }, tasks);
+
+        E answer = result.get(0);
+        for (int i = 1; i < result.size(); i++) {
+            answer = pseudoMonoid.operation(answer, result.get(i));
+        }
+
+        return answer;
     }
 
     private static class PseudoMonoid<T> {

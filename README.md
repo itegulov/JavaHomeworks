@@ -15,4 +15,6 @@ I've earned 3 bonuses by showing my own generic tests (they convinced him someho
 5) HW5 - it's also easy. GK doesn't look at javadoc very thoroughly, but all your link must be clickable. docgenerator.sh 
 generates javadoc for implementor
 
-6) HW6 - hmmmmm
+6) HW6 - test are so bad in this task
+
+7) HW7 - 
