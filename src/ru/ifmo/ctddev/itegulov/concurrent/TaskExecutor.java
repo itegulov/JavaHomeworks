@@ -1,7 +1,5 @@
 package ru.ifmo.ctddev.itegulov.concurrent;
 
-import ru.ifmo.ctddev.itegulov.concurrent.FutureTask;
-
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.function.Function;
@@ -58,7 +56,8 @@ public class TaskExecutor {
 
     /**
      * Shutdowns all threads, used for executing tasks and cancels all
-     * future tasks.
+     * future tasks, which were provided by {@link #submit}, but not executed
+     * yet.
      */
     public void shutdown() {
         synchronized (tasks) {

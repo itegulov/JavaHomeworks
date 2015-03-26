@@ -115,4 +115,17 @@ public class FutureTask<R, T> {
     public boolean isCancelled() {
         return status == STATUS_CANCELED;
     }
+
+    /**
+     * Wait for this future task to be done (ready or cancelled).
+     *
+     * @throws InterruptedException if this thread was interrupted
+     */
+    public void waitForDone() throws InterruptedException {
+        synchronized (this) {
+            while (!isReady() && !isCancelled()) {
+                wait();
+            }
+        }
+    }
 }

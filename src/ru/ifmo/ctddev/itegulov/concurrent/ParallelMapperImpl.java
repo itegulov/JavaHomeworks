@@ -25,7 +25,6 @@ public class ParallelMapperImpl implements ParallelMapper {
         taskExecutor = new TaskExecutor(threads);
     }
 
-    @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
     @Override
     public <T, R> List<R> map(final Function<? super T, ? extends R> function, final List<? extends T> list) throws InterruptedException {
         List<FutureTask<R, T>> futureTasks = new ArrayList<>();
@@ -34,10 +33,8 @@ public class ParallelMapperImpl implements ParallelMapper {
         }
         List<R> result = new ArrayList<>();
         for (FutureTask<R, T> futureTask : futureTasks) {
-            synchronized (futureTask) {
-                while (!futureTask.isReady()) {
-                    futureTask.wait();
-                }
+            futureTask.waitForDone();
+            if (futureTask.isReady()) {
                 result.add(futureTask.getResult());
             }
         }
