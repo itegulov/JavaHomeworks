@@ -16,8 +16,8 @@ public class WebCrawler implements Crawler {
     private final ExecutorService downloadThreadPool;
     private final ExecutorService extractThreadPool;
     private final Downloader downloader;
-    //Host -> Incoming urls
-    private final Map<String, BlockingQueue<String>> hosts = new HashMap<>();
+    private final ConcurrentHashMap<String, Integer> count = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, BlockingQueue<Worker.DownloaderCallable>> left = new ConcurrentHashMap<>();
     private final int perHost;
 
     private class Worker {
@@ -25,7 +25,6 @@ public class WebCrawler implements Crawler {
         private final int maxDepth;
         private final BlockingQueue<Future<String>> queue = new LinkedBlockingQueue<>();
         private final Set<String> downloaded = Collections.synchronizedSet(new HashSet<>());
-        private final ConcurrentHashMap<String, Integer> count = new ConcurrentHashMap<>();
 
         public Worker(String url, int maxDepth) {
             this.url = url;
@@ -80,9 +79,22 @@ public class WebCrawler implements Crawler {
             public String call() throws IOException, InterruptedException {
                 List<String> links;
                 links = document.extractLinks();
-                List<Callable<String>> tasks = links.stream().map(
-                        link -> new DownloaderCallable(link, depth + 1)).collect(Collectors.toList());
-                queue.addAll(downloadThreadPool.invokeAll(tasks));
+                for (String link : links) {
+                    synchronized (count) {
+                        count.putIfAbsent(URLUtils.getHost(link), 0);
+                        int cnt = count.get(URLUtils.getHost(link));
+                        left.putIfAbsent(URLUtils.getHost(link), new LinkedBlockingQueue<>());
+                        if (cnt < perHost) {
+                            queue.add(downloadThreadPool.submit(new DownloaderCallable(link, depth + 1)));
+                            count.compute(URLUtils.getHost(link), (s, i) -> i + 1);
+                        } else {
+                            left.get(URLUtils.getHost(link)).put(new DownloaderCallable(link, depth + 1));
+                        }
+                    }
+                }
+                //List<Callable<String>> tasks = links.stream().map(
+                //        link -> new DownloaderCallable(link, depth + 1)).collect(Collectors.toList());
+                //queue.addAll(downloadThreadPool.invokeAll(tasks));
                 return null;
             }
         }
@@ -104,20 +116,17 @@ public class WebCrawler implements Crawler {
                     }
                     downloaded.add(url);
                 }
-                synchronized (count) {
-                    Integer current = count.putIfAbsent(URLUtils.getHost(url), 0);
-                    if (current != null && current == perHost) {
-                        downloaded.remove(url);
-                        queue.put(downloadThreadPool.submit(new DownloaderCallable(url, depth)));
-                        return null;
-                    }
-                    count.compute(URLUtils.getHost(url), (s, integer) -> integer + 1);
-                }
                 Document document = downloader.download(url);
                 if (depth < maxDepth) {
                     queue.put(extractThreadPool.submit(new ExtractorCallable(document, depth)));
                 }
-                count.compute(URLUtils.getHost(url), (s, integer) -> integer - 1);
+                BlockingQueue<DownloaderCallable> q = left.get(URLUtils.getHost(url));
+                if (q != null && q.size() > 0) {
+                    DownloaderCallable downloaderCallable = q.take();
+                    queue.add(downloadThreadPool.submit(downloaderCallable));
+                } else {
+                    count.compute(URLUtils.getHost(url), (s, integer) -> integer - 1);
+                }
                 return url;
             }
         }
