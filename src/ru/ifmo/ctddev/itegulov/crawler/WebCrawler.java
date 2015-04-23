@@ -5,7 +5,6 @@ import info.kgeorgiy.java.advanced.crawler.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 /**
  * Basic implementation of {@link info.kgeorgiy.java.advanced.crawler.Crawler}.
@@ -32,6 +31,7 @@ public class WebCrawler implements Crawler {
         }
 
         public List<String> process() throws IOException, InterruptedException {
+            count.put(URLUtils.getHost(url), 1);
             queue.add(downloadThreadPool.submit(new Worker.DownloaderCallable(url, 1)));
             List<String> result = new ArrayList<>();
             while (!queue.isEmpty()) {
@@ -82,19 +82,15 @@ public class WebCrawler implements Crawler {
                 for (String link : links) {
                     synchronized (count) {
                         count.putIfAbsent(URLUtils.getHost(link), 0);
-                        int cnt = count.get(URLUtils.getHost(link));
-                        left.putIfAbsent(URLUtils.getHost(link), new LinkedBlockingQueue<>());
-                        if (cnt < perHost) {
-                            queue.add(downloadThreadPool.submit(new DownloaderCallable(link, depth + 1)));
+                        if (count.get(URLUtils.getHost(link)) < perHost) {
                             count.compute(URLUtils.getHost(link), (s, i) -> i + 1);
+                            queue.add(downloadThreadPool.submit(new DownloaderCallable(link, depth + 1)));
                         } else {
+                            left.putIfAbsent(URLUtils.getHost(link), new LinkedBlockingQueue<>());
                             left.get(URLUtils.getHost(link)).put(new DownloaderCallable(link, depth + 1));
                         }
                     }
                 }
-                //List<Callable<String>> tasks = links.stream().map(
-                //        link -> new DownloaderCallable(link, depth + 1)).collect(Collectors.toList());
-                //queue.addAll(downloadThreadPool.invokeAll(tasks));
                 return null;
             }
         }
@@ -110,23 +106,30 @@ public class WebCrawler implements Crawler {
 
             @Override
             public String call() throws IOException, InterruptedException {
+                boolean was;
                 synchronized (downloaded) {
                     if (downloaded.contains(url)) {
-                        return null;
+                        was = true;
+                    } else {
+                        was = false;
+                        downloaded.add(url);
                     }
-                    downloaded.add(url);
                 }
-                Document document = downloader.download(url);
-                if (depth < maxDepth) {
-                    queue.put(extractThreadPool.submit(new ExtractorCallable(document, depth)));
+                if (!was) {
+                    Document document = downloader.download(url);
+                    if (depth < maxDepth) {
+                        queue.put(extractThreadPool.submit(new ExtractorCallable(document, depth)));
+                    }
                 }
+
                 BlockingQueue<DownloaderCallable> q = left.get(URLUtils.getHost(url));
-                if (q != null && q.size() > 0) {
+                if (q != null && !q.isEmpty()) {
                     DownloaderCallable downloaderCallable = q.take();
                     queue.add(downloadThreadPool.submit(downloaderCallable));
                 } else {
                     count.compute(URLUtils.getHost(url), (s, integer) -> integer - 1);
                 }
+
                 return url;
             }
         }
