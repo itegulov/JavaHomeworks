@@ -38,9 +38,9 @@ public class WebCrawler implements Crawler {
             } catch (IOException e) {
                 errors.put(url, e);
             }
-            queue.add(new Pair(downloadThreadPool.submit(new Worker.DownloaderCallable(url, 1)), url));
+            queue.add(new Pair<>(downloadThreadPool.submit(new Worker.DownloaderCallable(url, 1)), url));
             while (!queue.isEmpty()) {
-                Pair<Future<String>, String> pair = queue.poll();
+                Pair<Future<String>, String> pair = queue.take();
                 Future<String> future = pair.getFirst();
                 String res;
                 try {
@@ -92,7 +92,7 @@ public class WebCrawler implements Crawler {
                         count.putIfAbsent(URLUtils.getHost(link), 0);
                         if (count.get(URLUtils.getHost(link)) < perHost) {
                             count.compute(URLUtils.getHost(link), (s, i) -> i + 1);
-                            queue.add(new Pair(downloadThreadPool.submit(new DownloaderCallable(link, depth + 1)), link));
+                            queue.add(new Pair<>(downloadThreadPool.submit(new DownloaderCallable(link, depth + 1)), link));
                         } else {
                             left.putIfAbsent(URLUtils.getHost(link), new LinkedBlockingQueue<>());
                             left.get(URLUtils.getHost(link)).put(new DownloaderCallable(link, depth + 1));
@@ -114,28 +114,21 @@ public class WebCrawler implements Crawler {
 
             @Override
             public String call() throws IOException, InterruptedException {
-                boolean was;
-                synchronized (downloaded) {
-                    if (downloaded.contains(url)) {
-                        was = true;
-                    } else {
-                        was = false;
-                        downloaded.add(url);
-                    }
-                }
-                if (!was) {
+                if (downloaded.add(url)) {
                     Document document = downloader.download(url);
                     if (depth < maxDepth) {
-                        queue.put(new Pair(extractThreadPool.submit(new ExtractorCallable(document, depth)), url));
+                        queue.put(new Pair<>(extractThreadPool.submit(new ExtractorCallable(document, depth)), url));
                     }
                 }
 
-                BlockingQueue<DownloaderCallable> q = left.get(URLUtils.getHost(url));
-                if (q != null && !q.isEmpty()) {
-                    DownloaderCallable downloaderCallable = q.take();
-                    queue.add(new Pair(downloadThreadPool.submit(downloaderCallable), url));
-                } else {
-                    count.compute(URLUtils.getHost(url), (s, integer) -> integer - 1);
+                synchronized (count) {
+                    BlockingQueue<DownloaderCallable> q = left.get(URLUtils.getHost(url));
+                    if (q != null && !q.isEmpty()) {
+                        DownloaderCallable downloaderCallable = q.take();
+                        queue.put(new Pair<>(downloadThreadPool.submit(downloaderCallable), url));
+                    } else {
+                        count.compute(URLUtils.getHost(url), (s, integer) -> integer - 1);
+                    }
                 }
 
                 return url;
