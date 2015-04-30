@@ -17,4 +17,8 @@ generates javadoc for implementor
 
 6) HW6 - test are so bad in this task
 
-7) HW7 - 
+7) HW7 - easy task
+
+8) HW8 - ensure that you don't have any active waits (constantly adding the same task to queue for example). There is
+some bug, which nobody couldn't solve, but i'm too lazy to describe it (you can write me if you want and i'll tell you
+more about it).
