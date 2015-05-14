@@ -28,13 +28,15 @@ public class HelloUDPServer implements HelloServer {
      * Starts server on specified port, which will receive requests and answer, adding {@code "Hello, } as prefix to
      * them. It will be done simultaneously in specified count of threads.
      *
-     * @param port number of port to listen
+     * @param port    number of port to listen
      * @param threads count of threads to use
      */
     @Override
-    public synchronized void start(int port, int threads) {
-        if (closed) {
-            throw new IllegalStateException("Cannot start, because server is closed");
+    public void start(int port, int threads) {
+        synchronized (this) {
+            if (closed) {
+                throw new IllegalStateException("Cannot start, because server is closed");
+            }
         }
 
         DatagramSocket socket;
@@ -49,36 +51,42 @@ public class HelloUDPServer implements HelloServer {
         }
 
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
-        sockets.add(socket);
-        threadPools.add(threadPool);
-        threadPool.submit(() -> {
-            while (!closed) {
-                try {
-                    socket.receive(request);
-                } catch (IOException e) {
-                    continue;
-                }
-
-                InetAddress clientAddress = request.getAddress();
-                int clientPort = request.getPort();
-                byte[] respBuf = ("Hello, " + new String(request.getData(), 0, request.getLength()))
-                        .getBytes(StandardCharsets.UTF_8);
-                DatagramPacket response = new DatagramPacket(respBuf, respBuf.length, clientAddress, clientPort);
-                if (threads == 1) {
+        synchronized (this) {
+            if (closed) {
+                throw new IllegalStateException("Cannot start, because server is closed");
+            }
+            sockets.add(socket);
+            threadPools.add(threadPool);
+            threadPool.execute(() -> {
+                while (!closed) {
                     try {
-                        socket.send(response);
-                    } catch (IOException ignore) {
+                        socket.receive(request);
+                    } catch (IOException e) {
+                        continue;
                     }
-                } else {
-                    threadPool.submit(() -> {
+
+                    InetAddress clientAddress = request.getAddress();
+                    int clientPort = request.getPort();
+                    byte[] respBuf =
+                            ("Hello, " + new String(request.getData(), 0, request.getLength(), StandardCharsets.UTF_8))
+                                    .getBytes(StandardCharsets.UTF_8);
+                    DatagramPacket response = new DatagramPacket(respBuf, respBuf.length, clientAddress, clientPort);
+                    if (threads == 1) {
                         try {
                             socket.send(response);
                         } catch (IOException ignore) {
                         }
-                    });
+                    } else {
+                        threadPool.execute(() -> {
+                            try {
+                                socket.send(response);
+                            } catch (IOException ignore) {
+                            }
+                        });
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
 
@@ -87,6 +95,9 @@ public class HelloUDPServer implements HelloServer {
      */
     @Override
     public synchronized void close() {
+        if (closed) {
+            throw new IllegalStateException("Server has already been closed");
+        }
         closed = true;
         sockets.forEach(DatagramSocket::close);
         threadPools.forEach(ExecutorService::shutdownNow);
@@ -96,6 +107,12 @@ public class HelloUDPServer implements HelloServer {
 
     private static final String USAGE = "Usage: java HelloUDPServer <port> <threads>";
 
+    /**
+     * Creates {@link HelloUDPServer} and uses it's {@link #start(int, int)} method with arguments
+     * for {@code args}.
+     *
+     * @param args arguments, which will be passed to created client
+     */
     public static void main(String[] args) {
         if (args == null || args.length != 2 || args[0] == null || args[1] == null) {
             System.err.println(USAGE);

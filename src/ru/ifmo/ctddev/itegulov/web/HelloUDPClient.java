@@ -23,11 +23,11 @@ public class HelloUDPClient implements HelloClient {
      * receives responses and print them to stdout. UDP-requests are resent after 200ms timeout or if some I/O error
      * occurs.
      *
-     * @param host name or IP-address, representing some server
-     * @param port destination port on server
-     * @param prefix string, which will be prefix for all sent requests
+     * @param host     name or IP-address, representing some server
+     * @param port     destination port on server
+     * @param prefix   string, which will be prefix for all sent requests
      * @param requests count of requests to send
-     * @param threads number of threads to send requests
+     * @param threads  number of threads to send requests
      */
     @Override
     public void start(final String host, final int port, final String prefix, final int requests, final int threads) {
@@ -49,7 +49,6 @@ public class HelloUDPClient implements HelloClient {
                         for (int j = 0; j < requests; j++) {
                             String request = prefix + threadId + "_" + j;
                             byte[] sendBuffer = request.getBytes(StandardCharsets.UTF_8);
-
                             while (true) { // try until send completes successfully
                                 try {
                                     socket.send(new DatagramPacket(sendBuffer, sendBuffer.length, address, port));
@@ -72,7 +71,8 @@ public class HelloUDPClient implements HelloClient {
                                 j--;
                             }
                         }
-                    } catch (IOException ignore) {
+                    } catch (SocketException e) {
+                        throw new IllegalStateException("Socket couldn't be created");
                     }
                 });
             }
@@ -109,6 +109,10 @@ public class HelloUDPClient implements HelloClient {
             return;
         }
 
-        new HelloUDPClient().start(args[0], port, args[2], requests, threads);
+        try {
+            new HelloUDPClient().start(args[0], port, args[2], requests, threads);
+        } catch (IllegalStateException e) {
+            System.err.println(e.getMessage());
+        }
     }
 }
