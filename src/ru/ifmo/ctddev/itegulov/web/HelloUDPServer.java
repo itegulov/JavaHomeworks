@@ -48,31 +48,37 @@ public class HelloUDPServer implements HelloServer {
             throw new IllegalStateException("Couldn't create socket: " + e.getMessage());
         }
 
-        ExecutorService newThreadPool = Executors.newFixedThreadPool(threads);
+        ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         sockets.add(socket);
-        threadPools.add(newThreadPool);
-
-        Runnable runnable = () -> {
+        threadPools.add(threadPool);
+        threadPool.submit(() -> {
             while (!closed) {
                 try {
                     socket.receive(request);
+                } catch (IOException e) {
+                    continue;
+                }
 
-                    InetAddress clientAddress = request.getAddress();
-                    int clientPort = request.getPort();
-                    byte[] respBuf = ("Hello, " + new String(request.getData(), 0, request.getLength()))
-                            .getBytes(StandardCharsets.UTF_8);
-
-                    DatagramPacket response = new DatagramPacket(respBuf, respBuf.length, clientAddress, clientPort);
-                    newThreadPool.submit(() -> {
+                InetAddress clientAddress = request.getAddress();
+                int clientPort = request.getPort();
+                byte[] respBuf = ("Hello, " + new String(request.getData(), 0, request.getLength()))
+                        .getBytes(StandardCharsets.UTF_8);
+                DatagramPacket response = new DatagramPacket(respBuf, respBuf.length, clientAddress, clientPort);
+                if (threads == 1) {
+                    try {
                         socket.send(response);
-                        return null;
+                    } catch (IOException ignore) {
+                    }
+                } else {
+                    threadPool.submit(() -> {
+                        try {
+                            socket.send(response);
+                        } catch (IOException ignore) {
+                        }
                     });
-                } catch (IOException ignore) {
                 }
             }
-        };
-
-        new Thread(runnable).start();
+        });
     }
 
 
@@ -86,5 +92,32 @@ public class HelloUDPServer implements HelloServer {
         threadPools.forEach(ExecutorService::shutdownNow);
         sockets.clear();
         threadPools.clear();
+    }
+
+    private static final String USAGE = "Usage: java HelloUDPServer <port> <threads>";
+
+    public static void main(String[] args) {
+        if (args == null || args.length != 2 || args[0] == null || args[1] == null) {
+            System.err.println(USAGE);
+            return;
+        }
+        int port, threads;
+        try {
+            port = Integer.parseInt(args[0]);
+            threads = Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            System.err.println(USAGE);
+            return;
+        }
+
+        try (HelloServer server = new HelloUDPServer()) {
+            server.start(port, threads);
+            synchronized (HelloUDPServer.class) {
+                try {
+                    HelloUDPServer.class.wait();
+                } catch (InterruptedException ignore) {
+                }
+            }
+        }
     }
 }
