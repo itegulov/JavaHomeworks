@@ -22,3 +22,9 @@ generates javadoc for implementor
 8) HW8 - ensure that you don't have any active waits (constantly adding the same task to queue for example). There is
 some bug, which nobody couldn't solve, but i'm too lazy to describe it (you can write me if you want and i'll tell you
 more about it).
+
+9) HW9 - neosilator(((((
+
+10) HW10 - neosilator(((((
+
+11) HW11 - sha izi zaidet

@@ -1,34 +1,90 @@
 package ru.ifmo.ctddev.itegulov.web;
 
+import info.kgeorgiy.java.advanced.hello.HelloServer;
+
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /**
+ * Basic implementation of {@link HelloServer}. Provides way to create servers, which will listen up to 65536 ports,
+ * receive UDP-packets and resend them back, adding {@code "Hello, "} prefix.
+ *
  * @author Daniyar Itegulov
  */
-public class HelloUDPServer {
-    public static void main(String[] args) {
-        if (args == null || args.length != 2 || args[0] == null || args[1] == null) {
-            System.err.println("Usage: HelloUDPServer port threadNumber");
-            return;
+public class HelloUDPServer implements HelloServer {
+    private final List<DatagramSocket> sockets = new ArrayList<>();
+    private final List<ExecutorService> threadPools = new ArrayList<>();
+    private boolean closed = false;
+
+    /**
+     * Starts server on specified port, which will receive requests and answer, adding {@code "Hello, } as prefix to
+     * them. It will be done simultaneously in specified count of threads.
+     *
+     * @param port number of port to listen
+     * @param threads count of threads to use
+     */
+    @Override
+    public synchronized void start(int port, int threads) {
+        if (closed) {
+            throw new IllegalStateException("Cannot start, because server is closed");
         }
 
-        int port;
+        DatagramSocket socket;
+        DatagramPacket request;
+
         try {
-            port = Integer.parseInt(args[0]);
-            if (port < 0) {
-                throw new NumberFormatException();
-            }
-        } catch (NumberFormatException e) {
-            System.err.println("Port number must be a legal non-negative number");
+            socket = new DatagramSocket(port);
+            byte[] reqBuf = new byte[socket.getReceiveBufferSize()];
+            request = new DatagramPacket(reqBuf, reqBuf.length);
+        } catch (SocketException e) {
+            throw new IllegalStateException("Couldn't create socket: " + e.getMessage());
         }
 
-        int threads;
-        try {
-            threads = Integer.parseInt(args[1]);
-            if (threads <= 0) {
-                throw new NumberFormatException();
+        ExecutorService newThreadPool = Executors.newFixedThreadPool(threads);
+        sockets.add(socket);
+        threadPools.add(newThreadPool);
+
+        Runnable runnable = () -> {
+            while (!closed) {
+                try {
+                    socket.receive(request);
+
+                    InetAddress clientAddress = request.getAddress();
+                    int clientPort = request.getPort();
+                    byte[] respBuf = ("Hello, " + new String(request.getData(), 0, request.getLength()))
+                            .getBytes(StandardCharsets.UTF_8);
+
+                    DatagramPacket response = new DatagramPacket(respBuf, respBuf.length, clientAddress, clientPort);
+                    newThreadPool.submit(() -> {
+                        socket.send(response);
+                        return null;
+                    });
+                } catch (IOException ignore) {
+                }
             }
-        } catch (NumberFormatException e) {
-            System.err.println("Thread number must be a legal positive number");
-        }
-        
+        };
+
+        new Thread(runnable).start();
+    }
+
+
+    /**
+     * Closes server. {@link #start(int, int)} can't be used after invocation of this method.
+     */
+    @Override
+    public synchronized void close() {
+        closed = true;
+        sockets.forEach(DatagramSocket::close);
+        threadPools.forEach(ExecutorService::shutdownNow);
+        sockets.clear();
+        threadPools.clear();
     }
 }
