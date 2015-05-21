@@ -198,6 +198,7 @@ public class UIFileCopy {
 
         @Override
         protected void done() {
+            frame.currentSpeedLabel.setText("000 MiB/s");
             frame.cancelButton.setEnabled(false);
         }
     }
@@ -212,10 +213,14 @@ public class UIFileCopy {
     }
 
     private static String formatSpeed(long bytesPerSecond) {
-        if (bytesPerSecond >= 1024) {
-            long kBytesPerSecond = bytesPerSecond / 1024;
-            if (kBytesPerSecond >= 1024) {
-                long mBytesPerSecond = kBytesPerSecond / 1024;
+        if (bytesPerSecond >= 1000) {
+            long kBytesPerSecond = bytesPerSecond / 1000;
+            if (kBytesPerSecond >= 1000) {
+                long mBytesPerSecond = kBytesPerSecond / 1000;
+                if (mBytesPerSecond >= 1000) {
+                    long gBytesPerSecond = mBytesPerSecond / 1000;
+                    return String.format("%03d GiB/s", gBytesPerSecond);
+                }
                 return String.format("%03d MiB/s", mBytesPerSecond);
             }
             return String.format("%03d KiB/s", kBytesPerSecond);

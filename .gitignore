@@ -20,3 +20,5 @@ hs_err_pid*
 # docs and builds
 doc
 build
+
+testRes
