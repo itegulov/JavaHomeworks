@@ -119,7 +119,7 @@ public class ResizeableTextLabel extends JLabel {
     /**
      * This method was overriden to implement font resizing.
      *
-     * @see javax.swing.JComponent#setPreferredSize(Dimension)
+     * @see JComponent#setPreferredSize(Dimension)
      */
     @Override
     public void setPreferredSize(Dimension newPreferredSize) {
@@ -131,7 +131,7 @@ public class ResizeableTextLabel extends JLabel {
      * Does exactly the same as {@link JLabel#getMinimumSize()}, but also
      * adjusts dimension to fit space available.
      *
-     * @see java.awt.Component#getMinimumSize()
+     * @see Component#getMinimumSize()
      */
     @Override
     public Dimension getMinimumSize() {
@@ -145,7 +145,7 @@ public class ResizeableTextLabel extends JLabel {
     /**
      * This method was overriden to implement font resizing.
      *
-     * @see javax.swing.JComponent#setMinimumSize(Dimension)
+     * @see JComponent#setMinimumSize(Dimension)
      */
     @Override
     public void setMinimumSize(Dimension newMinimumSize) {

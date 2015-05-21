@@ -29,13 +29,13 @@ public class UIFileCopyFrame extends JFrame {
         mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         infoPanel.add(new ResizeableTextLabel("Time  elapsed: "));
-        infoPanel.add(timeSpentLabel = new ResizeableTextLabel("00:00:01"));
+        infoPanel.add(timeSpentLabel = new ResizeableTextLabel("00:00:00"));
         infoPanel.add(new ResizeableTextLabel("Time remained: "));
-        infoPanel.add(timeLeftLabel = new ResizeableTextLabel("00:00:15"));
+        infoPanel.add(timeLeftLabel = new ResizeableTextLabel("00:00:00"));
         infoPanel.add(new ResizeableTextLabel("Average speed: "));
-        infoPanel.add(averageSpeedLabel = new ResizeableTextLabel("534 mB/s"));
+        infoPanel.add(averageSpeedLabel = new ResizeableTextLabel("0 B/s"));
         infoPanel.add(new ResizeableTextLabel("Current speed: "));
-        infoPanel.add(currentSpeedLabel = new ResizeableTextLabel("940 mB/s"));
+        infoPanel.add(currentSpeedLabel = new ResizeableTextLabel("0 B/s"));
 
         progressPanel.add(progressBar = new JProgressBar());
         progressPanel.add(cancelButton = new JButton("Cancel"), BorderLayout.EAST);

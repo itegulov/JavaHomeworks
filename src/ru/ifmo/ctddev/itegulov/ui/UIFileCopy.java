@@ -1,6 +1,7 @@
 package ru.ifmo.ctddev.itegulov.ui;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -31,9 +32,9 @@ public class UIFileCopy {
     }
 
     private static class Copier extends SwingWorker<Void, Long> {
-        private static String[] options = new String[]{"Retry", "Abort", "Continue"};
-        private static String[] exists = new String[]{"Replace", "Abort", "Continue"};
-        private static String[] visitFailed = new String[]{"Abort", "Continue"};
+        private static String[] options = new String[]{"Retry", "Abort", "Skip"};
+        private static String[] exists = new String[]{"Replace", "Abort", "Skip"};
+        private static String[] visitFailed = new String[]{"Abort", "Skip"};
         byte[] buffer = new byte[16384];
         private Path source;
         private Path destination;
@@ -44,7 +45,6 @@ public class UIFileCopy {
         private long readSize = 0;
         private long allTime = 0;
         private long prevTime;
-        private boolean active = true;
 
         public Copier(Path source, Path destination, UIFileCopyFrame frame) {
             super();
@@ -83,7 +83,7 @@ public class UIFileCopy {
                          OutputStream os = new FileOutputStream(to)) {
                         int length;
                         while (true) {
-                            if (!active) {
+                            if (Thread.currentThread().isInterrupted()) {
                                 return FileVisitResult.TERMINATE;
                             }
                             long start = System.nanoTime();
@@ -198,7 +198,7 @@ public class UIFileCopy {
 
         @Override
         protected void done() {
-            frame.currentSpeedLabel.setText("000 MiB/s");
+            frame.currentSpeedLabel.setText("000 MB/s");
             frame.cancelButton.setEnabled(false);
         }
     }
@@ -219,11 +219,11 @@ public class UIFileCopy {
                 long mBytesPerSecond = kBytesPerSecond / 1000;
                 if (mBytesPerSecond >= 1000) {
                     long gBytesPerSecond = mBytesPerSecond / 1000;
-                    return String.format("%03d GiB/s", gBytesPerSecond);
+                    return String.format("%03d GB/s", gBytesPerSecond);
                 }
-                return String.format("%03d MiB/s", mBytesPerSecond);
+                return String.format("%03d MB/s", mBytesPerSecond);
             }
-            return String.format("%03d KiB/s", kBytesPerSecond);
+            return String.format("%03d KB/s", kBytesPerSecond);
         }
         return String.format("%03d B/s", bytesPerSecond);
     }
@@ -245,10 +245,11 @@ public class UIFileCopy {
         Copier copier = new Copier(source, destination, frame);
         frame.progressBar.setMaximum(10000);
         frame.cancelButton.addActionListener(e -> {
-            copier.active = false;
+            copier.cancel(true);
             frame.cancelButton.setEnabled(false);
         });
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        frame.setMinimumSize(new Dimension(200, 150));
         frame.setSize(300, 300);
         frame.setVisible(true);
         copier.execute();
