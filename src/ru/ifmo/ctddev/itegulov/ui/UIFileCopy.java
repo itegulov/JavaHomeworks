@@ -5,10 +5,11 @@ import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Class, providing way to copy files.
+ *
  * @author Daniyar Itegulov
  */
 public class UIFileCopy {
@@ -40,8 +41,10 @@ public class UIFileCopy {
         private long fileSize = 0;
         private long currentSize = 0;
         private long totalSize = 0;
-        private long startTime;
+        private long readSize = 0;
+        private long allTime = 0;
         private long prevTime;
+        private boolean active = true;
 
         public Copier(Path source, Path destination, UIFileCopyFrame frame) {
             super();
@@ -53,7 +56,6 @@ public class UIFileCopy {
         @Override
         protected Void doInBackground() throws IOException {
             totalSize = FileLengthFetcher.fetch(source);
-            startTime = System.nanoTime();
             Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
@@ -62,7 +64,7 @@ public class UIFileCopy {
                     if (to.exists()) {
                         int res = JOptionPane.showOptionDialog(
                                 frame,
-                                String.format("File %s exists", to),
+                                String.format("File %s exists", to.toString()),
                                 "File exists",
                                 JOptionPane.YES_NO_CANCEL_OPTION,
                                 JOptionPane.WARNING_MESSAGE,
@@ -81,12 +83,16 @@ public class UIFileCopy {
                          OutputStream os = new FileOutputStream(to)) {
                         int length;
                         while (true) {
+                            if (!active) {
+                                return FileVisitResult.TERMINATE;
+                            }
+                            long start = System.nanoTime();
                             try {
                                 length = is.read(buffer);
                             } catch (IOException e) {
                                 int res = JOptionPane.showOptionDialog(
                                         frame,
-                                        String.format("File %s couldn't be read", from),
+                                        String.format("File %s couldn't be read", from.toString()),
                                         "File read error",
                                         JOptionPane.YES_NO_CANCEL_OPTION,
                                         JOptionPane.WARNING_MESSAGE,
@@ -108,11 +114,13 @@ public class UIFileCopy {
                             }
                             try {
                                 os.write(buffer, 0, length);
+                                long end = System.nanoTime();
+                                allTime += end - start;
                                 publish((long) length);
                             } catch (IOException e) {
                                 int res = JOptionPane.showOptionDialog(
                                         frame,
-                                        String.format("File %s couldn't be written", to),
+                                        String.format("File %s couldn't be written", to.toString()),
                                         "File write error",
                                         JOptionPane.YES_NO_CANCEL_OPTION,
                                         JOptionPane.WARNING_MESSAGE,
@@ -138,7 +146,7 @@ public class UIFileCopy {
                 public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
                     int res = JOptionPane.showOptionDialog(
                             frame,
-                            String.format("File %s visit failed", file),
+                            String.format("File %s visit failed", file.toString()),
                             "File visit failed",
                             JOptionPane.YES_NO_CANCEL_OPTION,
                             JOptionPane.WARNING_MESSAGE,
@@ -169,20 +177,28 @@ public class UIFileCopy {
             for (long size : chunks) {
                 long currentTime = System.nanoTime();
                 fileSize += size;
+                readSize += size;
                 currentSize += size;
                 int percent = (int) Math.round(currentSize * 10000.0D / totalSize);
                 frame.progressBar.setValue(percent);
-                long elapsed = currentTime - startTime;
-                frame.timeSpentLabel.setText(formatTime(elapsed / 1_000_000));
-                double speed = (currentSize * 1_000_000_000.0D / elapsed);
+                frame.timeSpentLabel.setText(formatTime(allTime / 1_000_000));
+                double speed = (currentSize * 1_000_000_000.0D / allTime);
                 frame.averageSpeedLabel.setText(formatSpeed((long) speed));
-                double currentSpeed = size * 1_000_000_000.0D / (currentTime - prevTime);
-                frame.currentSpeedLabel.setText(formatSpeed((long) currentSpeed));
                 long left = totalSize - currentSize;
                 long timeLeft = (long) Math.ceil(left / speed);
                 frame.timeLeftLabel.setText(formatTime(timeLeft * 1000));
-                prevTime = currentTime;
+                if (currentTime - prevTime >= 100_000_000) {
+                    double currentSpeed = readSize * 1_000_000_000.0D / (currentTime - prevTime);
+                    frame.currentSpeedLabel.setText(formatSpeed((long) currentSpeed));
+                    prevTime = System.nanoTime();
+                    readSize = 0;
+                }
             }
+        }
+
+        @Override
+        protected void done() {
+            frame.cancelButton.setEnabled(false);
         }
     }
 
@@ -207,6 +223,12 @@ public class UIFileCopy {
         return String.format("%03d B/s", bytesPerSecond);
     }
 
+    /**
+     * Copies first directory/file to second one recursively. Directories are passed through {@code args}.
+     * It has GUI with progress bar, average speed, current speed, elapsed time and time remaining.
+     *
+     * @param args array of strings, which must contain two directory/file paths
+     */
     public static void main(String[] args) {
         if (args == null || args.length != 2 || args[0] == null || args[1] == null) {
             System.out.println("Usage: java UIFileCopyFrame <source> <destination>");
@@ -215,11 +237,15 @@ public class UIFileCopy {
         Path source = Paths.get(args[0]);
         Path destination = Paths.get(args[1]);
         UIFileCopyFrame frame = new UIFileCopyFrame();
+        Copier copier = new Copier(source, destination, frame);
         frame.progressBar.setMaximum(10000);
+        frame.cancelButton.addActionListener(e -> {
+            copier.active = false;
+            frame.cancelButton.setEnabled(false);
+        });
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setSize(300, 300);
         frame.setVisible(true);
-        Copier copier = new Copier(source, destination, frame);
         copier.execute();
     }
 }

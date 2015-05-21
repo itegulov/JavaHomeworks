@@ -3,9 +3,10 @@ package ru.ifmo.ctddev.itegulov.ui;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.WindowEvent;
 
 /**
+ * GUI for {@link UIFileCopy} with progress bar, average speed, current speed, elapsed time and time remaining.
+ *
  * @author Daniyar Itegulov
  */
 public class UIFileCopyFrame extends JFrame {
@@ -14,6 +15,7 @@ public class UIFileCopyFrame extends JFrame {
     JLabel timeLeftLabel;
     JLabel averageSpeedLabel;
     JLabel currentSpeedLabel;
+    JButton cancelButton;
 
     public UIFileCopyFrame() throws HeadlessException {
         super("File copy");
@@ -36,11 +38,8 @@ public class UIFileCopyFrame extends JFrame {
         infoPanel.add(currentSpeedLabel = new ResizeableTextLabel("940 mB/s"));
 
         progressPanel.add(progressBar = new JProgressBar());
-        JButton cancelButton;
         progressPanel.add(cancelButton = new JButton("Cancel"), BorderLayout.EAST);
 
         this.getContentPane().add(mainPanel);
-
-        cancelButton.addActionListener(e -> this.processWindowEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING)));
     }
 }

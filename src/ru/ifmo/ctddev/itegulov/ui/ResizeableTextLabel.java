@@ -5,7 +5,6 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 
 
 /**
@@ -45,13 +44,6 @@ public class ResizeableTextLabel extends JLabel {
      */
     public ResizeableTextLabel(String text) {
         this(text, null, JLabel.LEADING);
-    }
-
-    /**
-     * Creates a resizable text label with empty text.
-     */
-    public ResizeableTextLabel() {
-        this("");
     }
 
     /**
