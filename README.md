@@ -25,6 +25,6 @@ more about it).
 
 9) HW9 - easy task with strange API.
 
-10) HW10 - too hard for me.
+10) HW10 - looks hard, but easy.
 
-11) HW11 - TODO
+11) HW11 - easy.
